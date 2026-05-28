@@ -37,7 +37,7 @@ def get_quotes():
         return cached
 
     tickers = yf.download(
-        ["^GSPC", "^IXIC", "CRCL", "NBIS"],
+        ["^GSPC", "^IXIC", "CRCL", "NBIS", "UUUU", "UAMY"],
         period="2d",
         interval="1d",
         progress=False,
@@ -61,6 +61,8 @@ def get_quotes():
         "nasdaq": build_quote("^IXIC", "NASDAQ"),
         "crcl":   build_quote("CRCL",  "Circle (CRCL)"),
         "nbis":   build_quote("NBIS",  "Nebius (NBIS)"),
+        "uuuu":   build_quote("UUUU",  "Energy Fuels (UUUU)"),
+        "uamy":   build_quote("UAMY",  "US Antimony (UAMY)"),
     }
     cache_set("quotes", result, ttl=60)
     return result
@@ -185,12 +187,16 @@ def get_ma_data():
     nasdaq_closes = fetch_closes("^IXIC")
     crcl_closes   = fetch_closes("CRCL")
     nbis_closes   = fetch_closes("NBIS")
+    uuuu_closes   = fetch_closes("UUUU")
+    uamy_closes   = fetch_closes("UAMY")
 
     result = {
         "sp500":  calc_mas(sp500_closes,  quotes["sp500"]["price"]),
         "nasdaq": calc_mas(nasdaq_closes, quotes["nasdaq"]["price"]),
         "crcl":   calc_mas(crcl_closes,   quotes["crcl"]["price"]),
         "nbis":   calc_mas(nbis_closes,   quotes["nbis"]["price"]),
+        "uuuu":   calc_mas(uuuu_closes,   quotes["uuuu"]["price"]),
+        "uamy":   calc_mas(uamy_closes,   quotes["uamy"]["price"]),
     }
     cache_set("ma_data", result, ttl=900)
     return result
