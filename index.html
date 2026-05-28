@@ -268,8 +268,8 @@
     document.getElementById('last-updated').textContent = `最后更新：${t}`;
   }
 
-  function formatPrice(n) {
-    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function formatPrice(n, decimals = 2) {
+    return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   }
 
   function renderCard(key, d) {
@@ -277,11 +277,12 @@
     const arrow = isUp ? '▲' : '▼';
     const cls   = Math.abs(d.change) < 0.001 ? 'flat' : (isUp ? 'up' : 'down');
     const sign  = isUp ? '+' : '';
+    const dec   = (key === 'sp500' || key === 'nasdaq') ? 0 : 2;
 
     document.getElementById(`${key}-price`).textContent =
-      formatPrice(d.price);
+      formatPrice(d.price, dec);
     document.getElementById(`${key}-change`).textContent =
-      `${arrow} ${sign}${formatPrice(d.change)}  (${sign}${d.change_pct.toFixed(2)}%)`;
+      `${arrow} ${sign}${formatPrice(d.change, dec)}  (${sign}${d.change_pct.toFixed(2)}%)`;
     document.getElementById(`${key}-change`).className = `card-change ${cls}`;
     document.getElementById(`card-${key}`).classList.remove('skeleton');
   }
@@ -302,6 +303,7 @@
     const { mas, nearest } = d;
     const sign = nearest.diff >= 0 ? '上方' : '下方';
     const absPct = Math.abs(nearest.diff_pct).toFixed(2);
+    const dec = (key === 'sp500' || key === 'nasdaq') ? 0 : 2;
 
     const gridItems = Object.entries(mas).map(([name, m]) => {
       const isNearest = name === nearest.name;
@@ -310,7 +312,7 @@
       return `
         <div class="ma-item ${isNearest ? 'nearest' : ''}">
           <div class="ma-label">${name}</div>
-          <div class="ma-val">${m.value.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+          <div class="ma-val">${m.value.toLocaleString('en-US', {minimumFractionDigits:dec, maximumFractionDigits:dec})}</div>
           <div class="ma-diff ${diffCls}">${diffSign}${m.diff_pct.toFixed(2)}%</div>
         </div>`;
     }).join('');
