@@ -83,15 +83,6 @@
       line-height: 1.6;
     }
 
-    .refresh-btn {
-      margin-top: 2rem; padding: 0.55rem 1.4rem;
-      background: transparent; border: 1px solid #30363d;
-      border-radius: 8px; color: #8b949e; font-size: 0.85rem;
-      cursor: pointer; transition: border-color 0.2s, color 0.2s;
-    }
-    .refresh-btn:hover    { border-color: #58a6ff; color: #58a6ff; }
-    .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
     /* ── 均线区块 ── */
     .ma-section {
       margin-top: 1rem;
@@ -274,7 +265,6 @@
   </div>
 </div>
 
-<button class="refresh-btn" id="refresh-btn" onclick="fetchAll()">🔄 刷新数据</button>
 
 <!-- 新闻区块 -->
 <div class="news-section">
@@ -407,9 +397,6 @@
   }
 
   async function fetchAll() {
-    const btn = document.getElementById('refresh-btn');
-    btn.disabled = true;
-    btn.textContent = '⏳ 获取中...';
     hideError();
 
     ['sp500', 'nasdaq', 'crcl', 'nbis', 'uuuu', 'uamy'].forEach(k => {
@@ -431,11 +418,6 @@
       renderCard('uamy',   json.data.uamy);
       showUpdated();
     } catch (e) {
-      showError(
-        `⚠️ 获取失败：${e.message}<br>` +
-        `请在终端运行：<code style="background:#21262d;padding:2px 6px;border-radius:4px;">` +
-        `python3 server.py</code>，然后访问 <b>http://localhost:8888</b>`
-      );
       ['sp500', 'nasdaq', 'crcl', 'nbis', 'uuuu', 'uamy'].forEach(k => {
         document.getElementById(`card-${k}`).classList.remove('skeleton');
         document.getElementById(`${k}-price`).textContent  = '--';
