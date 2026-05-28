@@ -198,7 +198,7 @@
 <body>
 
 <header>
-  <h1>📈 市场行情看板</h1>
+  <h1>📈 Jack Zhang 市场行情看板</h1>
   <div id="today-date"></div>
   <div id="last-updated"></div>
 </header>
@@ -319,10 +319,6 @@
     }).join('');
 
     el.innerHTML = `
-      <div class="ma-nearest">
-      支撑均线：<strong>${nearest.name}</strong>
-        &nbsp;·&nbsp; 当前在其${sign} <strong>${absPct}%</strong>
-      </div>
       <div class="ma-grid">${gridItems}</div>`;
     el.style.display = 'block';
   }
