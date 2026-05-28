@@ -101,7 +101,7 @@
 
     .ma-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 0.4rem;
     }
 
@@ -317,7 +317,7 @@
 
     el.innerHTML = `
       <div class="ma-nearest">
-      最近均线：<strong>${nearest.name}</strong>
+      支撑均线：<strong>${nearest.name}</strong>
         &nbsp;·&nbsp; 当前在其${sign} <strong>${absPct}%</strong>
       </div>
       <div class="ma-grid">${gridItems}</div>`;
