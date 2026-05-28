@@ -97,35 +97,21 @@ def calc_ema(closes, period):
 
 def calc_mas(closes, price):
     """计算各 EMA 及高亮均线
-    高亮规则（按用户定义的区间）：
-      价格 >= EMA5                    → 高亮 EMA5
-      EMA5  > 价格 >= EMA10           → 高亮 EMA5
-      EMA10 > 价格 >= EMA15           → 高亮 EMA10
-      EMA15 > 价格 >= EMA30           → 高亮 EMA15
-      EMA30 > 价格 >= EMA45           → 高亮 EMA30
-      EMA45 > 价格 >= EMA60           → 高亮 EMA45
-      EMA60 > 价格 >= EMA80           → 高亮 EMA60
-      EMA80 > 价格 >= EMA100          → 高亮 EMA80
-      EMA100> 价格 >= EMA120          → 高亮 EMA100
-      价格 < EMA120                   → 高亮 EMA120
-    注意：以上">"是指均线值的大小，不依赖周期顺序。
-    实际用"股价是否低于该均线"来判断，从短到长依次检查。
+    高亮规则：找到股价所在的所有区间中，跨度最大的那个，高亮该区间的下界均线。
+    区间定义（下界周期 → 上界周期）：
+      EMA5以上        → 高亮 EMA5
+      EMA5  ~ EMA10  → 高亮 EMA5
+      EMA10 ~ EMA15  → 高亮 EMA10
+      EMA15 ~ EMA30  → 高亮 EMA15
+      EMA30 ~ EMA45  → 高亮 EMA30
+      EMA45 ~ EMA60  → 高亮 EMA45
+      EMA60 ~ EMA80  → 高亮 EMA60
+      EMA80 ~ EMA100 → 高亮 EMA80
+      EMA100~ EMA120 → 高亮 EMA100
+      EMA120以下      → 高亮 EMA120
+    若股价同时落在多个区间（盘整），取跨度最大的区间。
     """
     periods = [5, 10, 15, 20, 30, 45, 60, 80, 100, 120]
-    # 高亮区间定义：(上界周期, 下界周期) → 高亮下界周期
-    # 含义：价格低于上界EMA、但高于等于下界EMA时，高亮下界EMA
-    highlight_rules = [
-        (5,   None),   # 价格 >= EMA5 → 高亮 EMA5
-        (10,  5),      # EMA5 > 价格 >= EMA10 → 高亮 EMA5  (highlight = upper)
-        (15,  10),
-        (30,  15),
-        (45,  30),
-        (60,  45),
-        (80,  60),
-        (100, 80),
-        (120, 100),
-        (None, 120),   # 价格 < EMA120 → 高亮 EMA120
-    ]
 
     mas = {}
     for p in periods:
@@ -142,25 +128,53 @@ def calc_mas(closes, price):
 
     ema_vals = {p: mas[f"EMA{p}"]["value"] for p in periods if f"EMA{p}" in mas}
 
-    # 从短到长依次判断：找到股价第一条低于的均线
-    # 即：股价 < EMA_n，则高亮 EMA_n
-    highlight_name = None
+    # 所有候选区间：(高亮周期, 区间跨度)
+    # 规则：股价 < 上界EMA 且 股价 >= 下界EMA → 高亮下界EMA
+    # 特殊：股价 >= EMA5 → 高亮EMA5（上界无穷大，跨度用 price - EMA5）
+    # 特殊：股价 < EMA120 → 高亮EMA120（下界无穷小，跨度用 EMA120 - price）
+    candidates = []
 
-    # 先检查是否在所有均线之上
-    ema5 = ema_vals.get(5)
-    if ema5 is not None and price >= ema5:
-        highlight_name = "EMA5"
+    # 区间规则：(下界周期, 上界周期)，高亮下界
+    zone_rules = [
+        (5,   10),
+        (10,  15),
+        (15,  30),
+        (30,  45),
+        (45,  60),
+        (60,  80),
+        (80,  100),
+        (100, 120),
+    ]
+
+    # 股价在 EMA5 以上
+    v5 = ema_vals.get(5)
+    if v5 is not None and price >= v5:
+        candidates.append(("EMA5", price - v5))
+
+    # 股价在 EMA120 以下
+    v120 = ema_vals.get(120)
+    if v120 is not None and price < v120:
+        candidates.append(("EMA120", v120 - price))
+
+    # 中间各区间
+    for lower_p, upper_p in zone_rules:
+        lower_val = ema_vals.get(lower_p)
+        upper_val = ema_vals.get(upper_p)
+        if lower_val is None or upper_val is None:
+            continue
+        hi = max(lower_val, upper_val)
+        lo = min(lower_val, upper_val)
+        if lo <= price < hi:
+            span = hi - lo
+            candidates.append((f"EMA{lower_p}", span))
+
+    if candidates:
+        # 取跨度最大的区间
+        highlight_name = max(candidates, key=lambda x: x[1])[0]
     else:
-        # 从 EMA10 开始，找第一条股价低于的均线
-        check_order = [10, 15, 30, 45, 60, 80, 100, 120]
-        for p in check_order:
-            val = ema_vals.get(p)
-            if val is not None and price < val:
-                highlight_name = f"EMA{p}"
-                break
-        # 若所有均线都低于股价（数据不全时兜底）
-        if highlight_name is None:
-            highlight_name = "EMA5"
+        # 兜底：取绝对差最小的均线
+        nearest = min(mas.items(), key=lambda x: abs(x[1]["diff_pct"]))
+        highlight_name = nearest[0]
 
     nearest_data = mas.get(highlight_name, list(mas.values())[0])
     return {
