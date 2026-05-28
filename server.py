@@ -82,19 +82,32 @@ def fetch_closes(ticker_symbol, days=65):
     return result
 
 
+def calc_ema(closes, period):
+    """计算 EMA（指数移动平均）"""
+    if len(closes) < period:
+        return None
+    k = 2 / (period + 1)
+    ema = sum(closes[:period]) / period  # 用前 N 天 SMA 作为初始值
+    for price in closes[period:]:
+        ema = price * k + ema * (1 - k)
+    return ema
+
+
 def calc_mas(closes, price):
-    """计算各均线及最近均线"""
+    """计算各 EMA 及最近均线"""
     periods = [5, 10, 15, 20, 30, 45, 60]
     mas = {}
     for p in periods:
-        if len(closes) >= p:
-            ma_val   = sum(closes[-p:]) / p
-            diff_pct = (price - ma_val) / ma_val * 100
-            mas[f"MA{p}"] = {
-                "value":    round(ma_val, 2),
-                "diff":     round(price - ma_val, 2),
+        ema_val = calc_ema(closes, p)
+        if ema_val is not None:
+            diff_pct = (price - ema_val) / ema_val * 100
+            mas[f"EMA{p}"] = {
+                "value":    round(ema_val, 2),
+                "diff":     round(price - ema_val, 2),
                 "diff_pct": round(diff_pct, 2),
             }
+    if not mas:
+        return {"mas": {}, "nearest": None}
     nearest = min(mas.items(), key=lambda x: abs(x[1]["diff_pct"]))
     return {
         "mas": mas,
@@ -102,6 +115,9 @@ def calc_mas(closes, price):
             "name":     nearest[0],
             "value":    nearest[1]["value"],
             "diff":     nearest[1]["diff"],
+            "diff_pct": nearest[1]["diff_pct"],
+        }
+    }
             "diff_pct": nearest[1]["diff_pct"],
         }
     }
