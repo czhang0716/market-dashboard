@@ -220,6 +220,22 @@
     <div class="card-change flat" id="nasdaq-change">── ──</div>
     <div class="ma-section" id="nasdaq-ma" style="display:none"></div>
   </div>
+
+  <div class="card skeleton" id="card-crcl">
+    <div class="card-label">美国股票</div>
+    <div class="card-name">Circle Internet &nbsp;CRCL</div>
+    <div class="card-price"      id="crcl-price">加载中...</div>
+    <div class="card-change flat" id="crcl-change">── ──</div>
+    <div class="ma-section" id="crcl-ma" style="display:none"></div>
+  </div>
+
+  <div class="card skeleton" id="card-nbis">
+    <div class="card-label">美国股票</div>
+    <div class="card-name">Nebius Group &nbsp;NBIS</div>
+    <div class="card-price"      id="nbis-price">加载中...</div>
+    <div class="card-change flat" id="nbis-change">── ──</div>
+    <div class="ma-section" id="nbis-ma" style="display:none"></div>
+  </div>
 </div>
 
 <button class="refresh-btn" id="refresh-btn" onclick="fetchAll()">🔄 刷新数据</button>
@@ -315,6 +331,8 @@
       if (!json.ok) throw new Error(json.error);
       renderMA('sp500',  json.data.sp500);
       renderMA('nasdaq', json.data.nasdaq);
+      renderMA('crcl',   json.data.crcl);
+      renderMA('nbis',   json.data.nbis);
     } catch (e) {
       console.warn('均线获取失败:', e.message);
     }
@@ -358,7 +376,7 @@
     btn.textContent = '⏳ 获取中...';
     hideError();
 
-    ['sp500', 'nasdaq'].forEach(k => {
+    ['sp500', 'nasdaq', 'crcl', 'nbis'].forEach(k => {
       document.getElementById(`card-${k}`).classList.add('skeleton');
       document.getElementById(`${k}-price`).textContent  = '加载中...';
       document.getElementById(`${k}-change`).textContent = '── ──';
@@ -371,6 +389,8 @@
       if (!json.ok) throw new Error(json.error || '服务器返回错误');
       renderCard('sp500',  json.data.sp500);
       renderCard('nasdaq', json.data.nasdaq);
+      renderCard('crcl',   json.data.crcl);
+      renderCard('nbis',   json.data.nbis);
       showUpdated();
     } catch (e) {
       showError(
@@ -378,7 +398,7 @@
         `请在终端运行：<code style="background:#21262d;padding:2px 6px;border-radius:4px;">` +
         `python3 server.py</code>，然后访问 <b>http://localhost:8888</b>`
       );
-      ['sp500', 'nasdaq'].forEach(k => {
+      ['sp500', 'nasdaq', 'crcl', 'nbis'].forEach(k => {
         document.getElementById(`card-${k}`).classList.remove('skeleton');
         document.getElementById(`${k}-price`).textContent  = '--';
         document.getElementById(`${k}-change`).textContent = '获取失败';

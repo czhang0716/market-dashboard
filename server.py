@@ -31,13 +31,13 @@ def cache_set(key, data, ttl=60):
 # ── 行情数据（yfinance）────────────────────────────────────────────────────
 
 def get_quotes():
-    """获取标普500和纳斯达克实时报价"""
+    """获取标普500、纳斯达克、CRCL、NBIS 实时报价"""
     cached = cache_get("quotes")
     if cached:
         return cached
 
     tickers = yf.download(
-        ["^GSPC", "^IXIC"],
+        ["^GSPC", "^IXIC", "CRCL", "NBIS"],
         period="2d",
         interval="1d",
         progress=False,
@@ -49,9 +49,9 @@ def get_quotes():
         prices = closes[symbol].dropna()
         if len(prices) < 2:
             raise ValueError(f"{symbol} 数据不足")
-        price     = float(prices.iloc[-1])
-        prev      = float(prices.iloc[-2])
-        change    = round(price - prev, 2)
+        price      = float(prices.iloc[-1])
+        prev       = float(prices.iloc[-2])
+        change     = round(price - prev, 2)
         change_pct = round((change / prev) * 100, 2)
         return {"name": name, "price": round(price, 2),
                 "change": change, "change_pct": change_pct}
@@ -59,6 +59,8 @@ def get_quotes():
     result = {
         "sp500":  build_quote("^GSPC", "S&P 500"),
         "nasdaq": build_quote("^IXIC", "NASDAQ"),
+        "crcl":   build_quote("CRCL",  "Circle (CRCL)"),
+        "nbis":   build_quote("NBIS",  "Nebius (NBIS)"),
     }
     cache_set("quotes", result, ttl=60)
     return result
@@ -106,7 +108,7 @@ def calc_mas(closes, price):
 
 
 def get_ma_data():
-    """获取标普500和纳斯达克均线数据"""
+    """获取标普500、纳斯达克、CRCL、NBIS 均线数据"""
     cached = cache_get("ma_data")
     if cached:
         return cached
@@ -114,10 +116,14 @@ def get_ma_data():
     quotes        = get_quotes()
     sp500_closes  = fetch_closes("^GSPC")
     nasdaq_closes = fetch_closes("^IXIC")
+    crcl_closes   = fetch_closes("CRCL")
+    nbis_closes   = fetch_closes("NBIS")
 
     result = {
         "sp500":  calc_mas(sp500_closes,  quotes["sp500"]["price"]),
         "nasdaq": calc_mas(nasdaq_closes, quotes["nasdaq"]["price"]),
+        "crcl":   calc_mas(crcl_closes,   quotes["crcl"]["price"]),
+        "nbis":   calc_mas(nbis_closes,   quotes["nbis"]["price"]),
     }
     cache_set("ma_data", result, ttl=900)
     return result
