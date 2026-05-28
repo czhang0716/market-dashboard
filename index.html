@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>市场行情看板</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    header { text-align: center; margin-bottom: 2.5rem; }
+    header h1 { font-size: 1.6rem; font-weight: 600; letter-spacing: 0.04em; color: #f0f6fc; }
+    #today-date   { margin-top: 0.5rem;  font-size: 1rem;  color: #8b949e; }
+    #last-updated { margin-top: 0.25rem; font-size: 0.8rem; color: #484f58; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 1.5rem 1.75rem;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: #58a6ff; }
+
+    .card-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8b949e; margin-bottom: 0.6rem; }
+    .card-name  { font-size: 1rem; color: #c9d1d9; margin-bottom: 1rem; }
+    .card-price { font-size: 2rem; font-weight: 700; color: #f0f6fc; letter-spacing: -0.02em; }
+
+    .card-change {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      margin-top: 0.5rem; font-size: 0.9rem; font-weight: 600;
+      padding: 0.2rem 0.6rem; border-radius: 6px;
+    }
+    .card-change.up   { color: #3fb950; background: rgba(63,185,80,0.12); }
+    .card-change.down { color: #f85149; background: rgba(248,81,73,0.12); }
+    .card-change.flat { color: #8b949e; background: rgba(139,148,158,0.12); }
+
+    .skeleton .card-price,
+    .skeleton .card-change {
+      background: #21262d; border-radius: 6px; color: transparent;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    #error-banner {
+      display: none;
+      margin-bottom: 1.5rem;
+      padding: 0.75rem 1.25rem;
+      background: rgba(248,81,73,0.1);
+      border: 1px solid rgba(248,81,73,0.3);
+      border-radius: 8px;
+      color: #f85149;
+      font-size: 0.85rem;
+      max-width: 700px;
+      width: 100%;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .refresh-btn {
+      margin-top: 2rem; padding: 0.55rem 1.4rem;
+      background: transparent; border: 1px solid #30363d;
+      border-radius: 8px; color: #8b949e; font-size: 0.85rem;
+      cursor: pointer; transition: border-color 0.2s, color 0.2s;
+    }
+    .refresh-btn:hover    { border-color: #58a6ff; color: #58a6ff; }
+    .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── 均线区块 ── */
+    .ma-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #21262d;
+    }
+
+    .ma-nearest {
+      font-size: 0.82rem;
+      color: #8b949e;
+      margin-bottom: 0.6rem;
+    }
+    .ma-nearest strong { color: #58a6ff; }
+
+    .ma-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.4rem;
+    }
+
+    .ma-item {
+      background: #0d1117;
+      border-radius: 6px;
+      padding: 0.35rem 0.5rem;
+      text-align: center;
+    }
+
+    .ma-item .ma-label { font-size: 0.68rem; color: #484f58; }
+    .ma-item .ma-val   { font-size: 0.78rem; color: #c9d1d9; font-weight: 600; margin-top: 0.1rem; }
+    .ma-item .ma-diff  { font-size: 0.68rem; margin-top: 0.1rem; }
+    .ma-item .ma-diff.up   { color: #3fb950; }
+    .ma-item .ma-diff.down { color: #f85149; }
+    .ma-item.nearest { border: 1px solid #58a6ff44; background: #1c2a3a; }
+    .ma-item.nearest .ma-label { color: #58a6ff; }
+
+    /* ── 新闻区块 ── */
+    .news-section {
+      width: 100%;
+      max-width: 700px;
+      margin-top: 2rem;
+    }
+
+    .news-section h2 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #8b949e;
+      margin-bottom: 0.75rem;
+    }
+
+    .news-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .news-item {
+      padding: 0.9rem 1.25rem;
+      border-bottom: 1px solid #21262d;
+      transition: background 0.15s;
+    }
+    .news-item:last-child { border-bottom: none; }
+    .news-item:hover { background: #1c2128; }
+
+    .news-item a {
+      text-decoration: none;
+      color: #c9d1d9;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      display: block;
+    }
+    .news-item a:hover { color: #58a6ff; }
+
+    .news-meta {
+      margin-top: 0.3rem;
+      font-size: 0.72rem;
+      color: #484f58;
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .news-skeleton .news-item a {
+      background: #21262d;
+      border-radius: 4px;
+      color: transparent;
+      animation: pulse 1.4s ease-in-out infinite;
+      height: 1.1em;
+    }
+    .news-skeleton .news-meta {
+      background: #21262d;
+      border-radius: 4px;
+      color: transparent;
+      animation: pulse 1.4s ease-in-out infinite;
+      height: 0.8em;
+      width: 40%;
+      margin-top: 0.4rem;
+    }
+
+    footer {
+      margin-top: 2.5rem; font-size: 0.72rem;
+      color: #484f58; text-align: center; line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📈 市场行情看板</h1>
+  <div id="today-date"></div>
+  <div id="last-updated"></div>
+</header>
+
+<div id="error-banner"></div>
+
+<div class="cards">
+  <div class="card skeleton" id="card-sp500">
+    <div class="card-label">美国股市</div>
+    <div class="card-name">标普 500 &nbsp;S&amp;P 500</div>
+    <div class="card-price"      id="sp500-price">加载中...</div>
+    <div class="card-change flat" id="sp500-change">── ──</div>
+    <div class="ma-section" id="sp500-ma" style="display:none"></div>
+  </div>
+
+  <div class="card skeleton" id="card-nasdaq">
+    <div class="card-label">美国股市</div>
+    <div class="card-name">纳斯达克 100 &nbsp;NASDAQ</div>
+    <div class="card-price"      id="nasdaq-price">加载中...</div>
+    <div class="card-change flat" id="nasdaq-change">── ──</div>
+    <div class="ma-section" id="nasdaq-ma" style="display:none"></div>
+  </div>
+</div>
+
+<button class="refresh-btn" id="refresh-btn" onclick="fetchAll()">🔄 刷新数据</button>
+
+<!-- 新闻区块 -->
+<div class="news-section">
+  <h2>📰 美股大盘新闻</h2>
+  <div class="news-list news-skeleton" id="news-list">
+    <!-- 骨架屏占位 -->
+    <div class="news-item"><a href="#">　</a><div class="news-meta">　</div></div>
+    <div class="news-item"><a href="#">　</a><div class="news-meta">　</div></div>
+    <div class="news-item"><a href="#">　</a><div class="news-meta">　</div></div>
+  </div>
+</div>
+
+<footer>
+  数据来源：新浪财经 &nbsp;|&nbsp; 行情存在延迟，仅供参考，不构成投资建议
+</footer>
+
+<script>
+  function showDate() {
+    const opts = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+    document.getElementById('today-date').textContent =
+      new Date().toLocaleDateString('zh-CN', opts);
+  }
+
+  function showUpdated() {
+    const t = new Date().toLocaleTimeString('zh-CN',
+      { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('last-updated').textContent = `最后更新：${t}`;
+  }
+
+  function formatPrice(n) {
+    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function renderCard(key, d) {
+    const isUp  = d.change >= 0;
+    const arrow = isUp ? '▲' : '▼';
+    const cls   = Math.abs(d.change) < 0.001 ? 'flat' : (isUp ? 'up' : 'down');
+    const sign  = isUp ? '+' : '';
+
+    document.getElementById(`${key}-price`).textContent =
+      formatPrice(d.price);
+    document.getElementById(`${key}-change`).textContent =
+      `${arrow} ${sign}${formatPrice(d.change)}  (${sign}${d.change_pct.toFixed(2)}%)`;
+    document.getElementById(`${key}-change`).className = `card-change ${cls}`;
+    document.getElementById(`card-${key}`).classList.remove('skeleton');
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-banner');
+    el.innerHTML = msg;
+    el.style.display = 'block';
+  }
+
+  function hideError() {
+    document.getElementById('error-banner').style.display = 'none';
+  }
+
+  function renderMA(key, d) {
+    const el = document.getElementById(`${key}-ma`);
+    if (!el) return;
+    const { mas, nearest } = d;
+    const sign = nearest.diff >= 0 ? '上方' : '下方';
+    const absPct = Math.abs(nearest.diff_pct).toFixed(2);
+
+    const gridItems = Object.entries(mas).map(([name, m]) => {
+      const isNearest = name === nearest.name;
+      const diffCls   = m.diff >= 0 ? 'up' : 'down';
+      const diffSign  = m.diff >= 0 ? '+' : '';
+      return `
+        <div class="ma-item ${isNearest ? 'nearest' : ''}">
+          <div class="ma-label">${name}</div>
+          <div class="ma-val">${m.value.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</div>
+          <div class="ma-diff ${diffCls}">${diffSign}${m.diff_pct.toFixed(2)}%</div>
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="ma-nearest">
+        最近均线：<strong>${nearest.name}</strong>
+        &nbsp;·&nbsp; 当前在其${sign} <strong>${absPct}%</strong>
+      </div>
+      <div class="ma-grid">${gridItems}</div>`;
+    el.style.display = 'block';
+  }
+
+  async function fetchMA() {
+    try {
+      const res  = await fetch('/api/ma', { cache: 'no-store' });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+      renderMA('sp500',  json.data.sp500);
+      renderMA('nasdaq', json.data.nasdaq);
+    } catch (e) {
+      console.warn('均线获取失败:', e.message);
+    }
+  }
+
+  function renderNews(items) {
+    const list = document.getElementById('news-list');
+    list.classList.remove('news-skeleton');
+    list.innerHTML = items.map(item => {
+      const t = item.time
+        ? new Date(item.time * 1000).toLocaleString('zh-CN',
+            { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+        : '';
+      return `
+        <div class="news-item">
+          <a href="${item.url}" target="_blank" rel="noopener">${item.title}</a>
+          <div class="news-meta">
+            <span>${item.source}</span>
+            ${t ? `<span>${t}</span>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function fetchNews() {
+    try {
+      const res  = await fetch('/api/news', { cache: 'no-store' });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+      renderNews(json.data);
+    } catch (e) {
+      document.getElementById('news-list').innerHTML =
+        `<div class="news-item"><a href="#" style="color:#484f58">新闻获取失败：${e.message}</a></div>`;
+      document.getElementById('news-list').classList.remove('news-skeleton');
+    }
+  }
+
+  async function fetchAll() {
+    const btn = document.getElementById('refresh-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 获取中...';
+    hideError();
+
+    ['sp500', 'nasdaq'].forEach(k => {
+      document.getElementById(`card-${k}`).classList.add('skeleton');
+      document.getElementById(`${k}-price`).textContent  = '加载中...';
+      document.getElementById(`${k}-change`).textContent = '── ──';
+      document.getElementById(`${k}-change`).className   = 'card-change flat';
+    });
+
+    try {
+      const res  = await fetch('/api/quotes', { cache: 'no-store' });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || '服务器返回错误');
+      renderCard('sp500',  json.data.sp500);
+      renderCard('nasdaq', json.data.nasdaq);
+      showUpdated();
+    } catch (e) {
+      showError(
+        `⚠️ 获取失败：${e.message}<br>` +
+        `请在终端运行：<code style="background:#21262d;padding:2px 6px;border-radius:4px;">` +
+        `python3 server.py</code>，然后访问 <b>http://localhost:8888</b>`
+      );
+      ['sp500', 'nasdaq'].forEach(k => {
+        document.getElementById(`card-${k}`).classList.remove('skeleton');
+        document.getElementById(`${k}-price`).textContent  = '--';
+        document.getElementById(`${k}-change`).textContent = '获取失败';
+      });
+    }
+
+    btn.disabled = false;
+    btn.textContent = '🔄 刷新数据';
+  }
+
+  showDate();
+  fetchAll();
+  fetchNews();
+  fetchMA();
+  setInterval(fetchAll,  60_000);
+  setInterval(fetchNews, 300_000);
+  setInterval(fetchMA,   300_000);  // 均线每 5 分钟刷新
+</script>
+
+</body>
+</html>
