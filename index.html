@@ -41,8 +41,15 @@
     }
     .card:hover { border-color: #58a6ff; }
 
-    .card-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #8b949e; margin-bottom: 0.6rem; }
-    .card-name  { font-size: 1rem; color: #c9d1d9; margin-bottom: 1rem; }
+    .card-label { display: none; }
+    .card-name  { font-size: 1rem; color: #c9d1d9; margin-bottom: 0.6rem; }
+
+    .card-price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
     .card-price { font-size: 2rem; font-weight: 700; color: #f0f6fc; letter-spacing: -0.02em; }
 
     .card-change {
@@ -209,32 +216,40 @@
   <div class="card skeleton" id="card-sp500">
     <div class="card-label">美国股市</div>
     <div class="card-name">标普 500 &nbsp;S&amp;P 500</div>
-    <div class="card-price"      id="sp500-price">加载中...</div>
-    <div class="card-change flat" id="sp500-change">── ──</div>
+    <div class="card-price-row">
+      <div class="card-price" id="sp500-price">加载中...</div>
+      <div class="card-change flat" id="sp500-change">── ──</div>
+    </div>
     <div class="ma-section" id="sp500-ma" style="display:none"></div>
   </div>
 
   <div class="card skeleton" id="card-nasdaq">
     <div class="card-label">美国股市</div>
     <div class="card-name">纳斯达克 100 &nbsp;NASDAQ</div>
-    <div class="card-price"      id="nasdaq-price">加载中...</div>
-    <div class="card-change flat" id="nasdaq-change">── ──</div>
+    <div class="card-price-row">
+      <div class="card-price" id="nasdaq-price">加载中...</div>
+      <div class="card-change flat" id="nasdaq-change">── ──</div>
+    </div>
     <div class="ma-section" id="nasdaq-ma" style="display:none"></div>
   </div>
 
   <div class="card skeleton" id="card-crcl">
     <div class="card-label">美国股票</div>
     <div class="card-name">Circle Internet &nbsp;CRCL</div>
-    <div class="card-price"      id="crcl-price">加载中...</div>
-    <div class="card-change flat" id="crcl-change">── ──</div>
+    <div class="card-price-row">
+      <div class="card-price" id="crcl-price">加载中...</div>
+      <div class="card-change flat" id="crcl-change">── ──</div>
+    </div>
     <div class="ma-section" id="crcl-ma" style="display:none"></div>
   </div>
 
   <div class="card skeleton" id="card-nbis">
     <div class="card-label">美国股票</div>
     <div class="card-name">Nebius Group &nbsp;NBIS</div>
-    <div class="card-price"      id="nbis-price">加载中...</div>
-    <div class="card-change flat" id="nbis-change">── ──</div>
+    <div class="card-price-row">
+      <div class="card-price" id="nbis-price">加载中...</div>
+      <div class="card-change flat" id="nbis-change">── ──</div>
+    </div>
     <div class="ma-section" id="nbis-ma" style="display:none"></div>
   </div>
 </div>
