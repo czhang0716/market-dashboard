@@ -118,9 +118,6 @@ def calc_mas(closes, price):
             "diff_pct": nearest[1]["diff_pct"],
         }
     }
-            "diff_pct": nearest[1]["diff_pct"],
-        }
-    }
 
 
 def get_ma_data():
@@ -153,7 +150,7 @@ def get_news(count=10):
     if cached:
         return cached
 
-    url = f"https://feed.sina.com.cn/api/roll/get?pageid=153&lid=2516&num={count}&page=1"
+    url = f"https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2516&num={count}&page=1"
     ctx = ssl._create_unverified_context()
     req = urllib.request.Request(url, headers={
         "Referer":    "https://finance.sina.com.cn",
@@ -209,7 +206,10 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_GET(self):
-        if self.path == "/api/quotes":
+        if self.path == "/health":
+            self.send_json({"ok": True})
+
+        elif self.path == "/api/quotes":
             try:
                 self.send_json({"ok": True, "data": get_quotes()})
             except Exception as e:
