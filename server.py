@@ -156,7 +156,7 @@ def calc_mas(closes, price):
     if v120 is not None and price < v120:
         candidates.append(("EMA120", v120 - price))
 
-    # 中间各区间
+    # 中间各区间：两条均线都加入候选，取周期最长的
     for lower_p, upper_p in zone_rules:
         lower_val = ema_vals.get(lower_p)
         upper_val = ema_vals.get(upper_p)
@@ -167,10 +167,14 @@ def calc_mas(closes, price):
         if lo <= price < hi:
             span = hi - lo
             candidates.append((f"EMA{lower_p}", span))
+            candidates.append((f"EMA{upper_p}", span))
 
     if candidates:
-        # 取跨度最大的区间
-        highlight_name = max(candidates, key=lambda x: x[1])[0]
+        # 取周期最长的区间（EMA120 > EMA100 > ... > EMA5）
+        period_order = {"EMA120": 120, "EMA100": 100, "EMA80": 80,
+                        "EMA60": 60, "EMA45": 45, "EMA30": 30,
+                        "EMA15": 15, "EMA10": 10, "EMA5": 5}
+        highlight_name = max(candidates, key=lambda x: period_order.get(x[0], 0))[0]
     else:
         # 兜底：取绝对差最小的均线
         nearest = min(mas.items(), key=lambda x: abs(x[1]["diff_pct"]))
