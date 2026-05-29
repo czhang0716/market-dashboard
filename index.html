@@ -91,17 +91,21 @@
 
     .ma-row {
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.3rem;
+      flex-wrap: nowrap;
+      gap: 0.2rem;
+      overflow: hidden;
     }
 
     .ma-tag {
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-family: 'Arial Narrow', Arial, sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
       color: #484f58;
-      padding: 0.15rem 0.4rem;
+      padding: 0.1rem 0.3rem;
       border-radius: 4px;
       background: #0d1117;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .ma-tag.nearest {
       color: #58a6ff;
@@ -352,7 +356,7 @@
 </div>
 
 <footer>
-  数据来源：Yahoo Finance &nbsp;|&nbsp; 新闻来源：富途牛牛 &nbsp;|&nbsp; 行情存在延迟，仅供参考，不构成投资建议
+  数据来源：Yahoo Finance &nbsp;|&nbsp; 新闻来源：富途牛牛 / Bing &nbsp;|&nbsp; 行情存在延迟，仅供参考，不构成投资建议
 </footer>
 
 <script>

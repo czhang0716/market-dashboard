@@ -224,47 +224,35 @@ def get_ma_data():
 
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
+import random
 
 # 过滤中国/A股/中概股相关新闻
 _CN_FILTER_KEYWORDS = [
     "中国", "A股", "中概", "港股", "沪市", "深市", "沪深",
     "上证", "深证", "创业板", "科创板", "北交所", "新三板",
-    "人民币", "央行", "证监会", "国内", "A股市场",
+    "人民币", "央行", "证监会", "国内",
 ]
 
 def _is_cn_news(title: str) -> bool:
-    """如果标题含中国/A股/中概股关键词，返回 True（需过滤掉）"""
     return any(kw in title for kw in _CN_FILTER_KEYWORDS)
 
-_CARD_NEWS_QUERIES = {
-    "sp500":  "site%3Afutunn.com+%E6%A0%87%E6%99%AE500",
-    "nasdaq": "site%3Afutunn.com+%E7%BA%B3%E6%8C%87",
-    "sox":    "site%3Afutunn.com+%E8%B4%B9%E5%9F%8E%E5%8D%8A%E5%AF%BC%E4%BD%93",
-    "crcl":   "site%3Afutunn.com+Circle+USDC",
-    "nbis":   "site%3Afutunn.com+Nebius",
-    "uuuu":   "site%3Afutunn.com+%E9%93%80+%E6%A0%B8%E8%83%BD",
-    "uamy":   "site%3Afutunn.com+%E9%94%91+Antimony",
-    "btcusd": "site%3Afutunn.com+%E6%AF%94%E7%89%B9%E5%B8%81",
-    "gold":   "site%3Afutunn.com+%E9%BB%84%E9%87%91",
-    "googl":  "site%3Afutunn.com+Alphabet+GOOGL",
-    "mu":     "site%3Afutunn.com+%E7%BE%8E%E5%85%89%E7%A7%91%E6%8A%80",
-    "nvda":   "site%3Afutunn.com+%E8%8B%B1%E4%BC%9F%E8%BE%BE",
-}
+# 多个 User-Agent 轮换，降低被封概率
+_USER_AGENTS = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Feedfetcher-Google; (+http://www.google.com/feedfetcher.html)",
+]
+
+def _random_ua() -> str:
+    return random.choice(_USER_AGENTS)
 
 
-def _fetch_futu_news(query: str, count: int = 2) -> list:
-    """从 Google News RSS 抓取富途新闻，返回最多 count 条"""
-    rss_url = (
-        f"https://news.google.com/rss/search?q={query}"
-        "&hl=zh-CN&gl=CN&ceid=CN%3Azh-Hans"
-    )
+def _fetch_rss(url: str, count: int, source: str, filter_cn: bool = True) -> list:
+    """通用 RSS 抓取，返回最多 count 条，可选过滤中文 A 股新闻"""
     try:
-        req = urllib.request.Request(rss_url, headers={
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                          "AppleWebKit/537.36 (KHTML, like Gecko) "
-                          "Chrome/124.0.0.0 Safari/537.36"
-        })
-        with urllib.request.urlopen(req, timeout=8) as resp:
+        req = urllib.request.Request(url, headers={"User-Agent": _random_ua()})
+        with urllib.request.urlopen(req, timeout=10) as resp:
             xml_text = resp.read().decode("utf-8", errors="ignore")
         root  = ET.fromstring(xml_text)
         items = root.findall("./channel/item")
@@ -277,72 +265,139 @@ def _fetch_futu_news(query: str, count: int = 2) -> list:
             pub   = (item.findtext("pubDate") or "").strip()
             if not title or not link:
                 continue
-            if _is_cn_news(title):
+            if filter_cn and _is_cn_news(title):
                 continue
             ts = 0
             try:
                 ts = int(parsedate_to_datetime(pub).timestamp())
             except Exception:
                 pass
-            news.append({"title": title, "url": link, "time": ts, "source": "富途牛牛"})
+            news.append({"title": title, "url": link, "time": ts, "source": source})
         return news
-    except Exception:
+    except Exception as e:
+        print(f"  [rss] {url[:60]}... 失败: {e}")
         return []
 
 
-def get_news(count=10):
-    """从 Google News 抓取 futunn.com 美股新闻（底部新闻栏），缓存 5 分钟"""
+# ── 卡片新闻：Google News RSS（富途）→ Bing News RSS（中文）→ 空列表 ──────
+
+_CARD_NEWS_GOOGLE = {
+    "sp500":  "site%3Afutunn.com+%E6%A0%87%E6%99%AE500",
+    "nasdaq": "site%3Afutunn.com+%E7%BA%B3%E6%8C%87",
+    "sox":    "site%3Afutunn.com+%E8%B4%B9%E5%9F%8E%E5%8D%8A%E5%AF%BC%E4%BD%93",
+    "nvda":   "site%3Afutunn.com+%E8%8B%B1%E4%BC%9F%E8%BE%BE+NVDA",
+    "mu":     "site%3Afutunn.com+%E7%BE%8E%E5%85%89%E7%A7%91%E6%8A%80",
+    "nbis":   "site%3Afutunn.com+Nebius",
+    "googl":  "site%3Afutunn.com+Alphabet+GOOGL",
+    "crcl":   "site%3Afutunn.com+Circle+CRCL",
+    "uuuu":   "site%3Afutunn.com+Energy+Fuels+UUUU",
+    "uamy":   "site%3Afutunn.com+Antimony+UAMY",
+    "btcusd": "site%3Afutunn.com+%E6%AF%94%E7%89%B9%E5%B8%81",
+    "gold":   "site%3Afutunn.com+%E9%BB%84%E9%87%91",
+}
+
+_CARD_NEWS_BING = {
+    "sp500":  "%E6%A0%87%E6%99%AE500+%E7%BE%8E%E8%82%A1",
+    "nasdaq": "%E7%BA%B3%E6%8C%87+%E7%BE%8E%E8%82%A1",
+    "sox":    "%E8%B4%B9%E5%9F%8E%E5%8D%8A%E5%AF%BC%E4%BD%93",
+    "nvda":   "%E8%8B%B1%E4%BC%9F%E8%BE%BE+NVDA",
+    "mu":     "%E7%BE%8E%E5%85%89%E7%A7%91%E6%8A%80+MU",
+    "nbis":   "Nebius+NBIS",
+    "googl":  "Alphabet+GOOGL",
+    "crcl":   "Circle+CRCL",
+    "uuuu":   "Energy+Fuels+UUUU",
+    "uamy":   "Antimony+UAMY",
+    "btcusd": "%E6%AF%94%E7%89%B9%E5%B8%81+BTC",
+    "gold":   "%E9%BB%84%E9%87%91+%E7%BE%8E%E8%82%A1",
+}
+
+# 磁盘持久化缓存（新闻获取失败时回退）
+import json as _json
+from pathlib import Path as _Path
+_NEWS_DISK_CACHE   = _Path("news_cache.json")
+_CARD_NEWS_DISK    = _Path("card_news_cache.json")
+
+
+def _save_disk(path: _Path, data) -> None:
+    try:
+        path.write_text(_json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+def _load_disk(path: _Path):
+    try:
+        if path.exists():
+            return _json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return None
+
+
+def _fetch_card_news_one(key: str, count: int) -> list:
+    """先试 Google News RSS（富途），失败再试 Bing News RSS"""
+    g_query = _CARD_NEWS_GOOGLE.get(key, "")
+    if g_query:
+        url = (f"https://news.google.com/rss/search?q={g_query}"
+               "&hl=zh-CN&gl=CN&ceid=CN%3Azh-Hans")
+        result = _fetch_rss(url, count, "富途牛牛", filter_cn=True)
+        if result:
+            return result
+    # 回退 Bing
+    b_query = _CARD_NEWS_BING.get(key, "")
+    if b_query:
+        url = f"https://www.bing.com/news/search?q={b_query}&format=rss&setlang=zh-CN"
+        result = _fetch_rss(url, count, "Bing新闻", filter_cn=True)
+        if result:
+            return result
+    return []
+
+
+def get_news(count: int = 10) -> list:
+    """底部大盘新闻：Google News RSS（富途美股）→ Bing → 磁盘缓存"""
     cached = cache_get("news")
     if cached:
         return cached
 
-    rss_url = (
-        "https://news.google.com/rss/search"
-        "?q=site%3Afutunn.com+%E7%BE%8E%E8%82%A1"
-        "&hl=zh-CN&gl=CN&ceid=CN%3Azh-Hans"
-    )
-    req = urllib.request.Request(rss_url, headers={
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                      "AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/124.0.0.0 Safari/537.36"
-    })
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        xml_text = resp.read().decode("utf-8", errors="ignore")
+    # 1. Google News RSS 富途美股
+    url = ("https://news.google.com/rss/search"
+           "?q=site%3Afutunn.com+%E7%BE%8E%E8%82%A1"
+           "&hl=zh-CN&gl=CN&ceid=CN%3Azh-Hans")
+    news = _fetch_rss(url, count, "富途牛牛", filter_cn=True)
 
-    root  = ET.fromstring(xml_text)
-    items = root.findall("./channel/item")
-    news  = []
-    for item in items:
-        if len(news) >= count:
-            break
-        title = (item.findtext("title") or "").strip()
-        link  = (item.findtext("link")  or "").strip()
-        pub   = (item.findtext("pubDate") or "").strip()
-        if not title or not link:
-            continue
-        if _is_cn_news(title):
-            continue
-        ts = 0
-        try:
-            ts = int(parsedate_to_datetime(pub).timestamp())
-        except Exception:
-            pass
-        news.append({"title": title, "url": link, "intro": "", "time": ts, "source": "富途牛牛"})
+    # 2. 回退：Bing 中文美股新闻
+    if len(news) < 3:
+        url2 = "https://www.bing.com/news/search?q=%E7%BE%8E%E8%82%A1+%E8%A1%8C%E6%83%85&format=rss&setlang=zh-CN"
+        news = _fetch_rss(url2, count, "Bing新闻", filter_cn=True)
 
-    cache_set("news", news, ttl=300)
+    # 3. 回退：磁盘缓存
+    if len(news) < 3:
+        disk = _load_disk(_NEWS_DISK_CACHE)
+        if disk:
+            news = disk
+
+    if news:
+        _save_disk(_NEWS_DISK_CACHE, news)
+        cache_set("news", news, ttl=300)
     return news
 
 
-def get_card_news():
-    """为每张卡片抓取2条相关富途新闻，缓存10分钟"""
+def get_card_news() -> dict:
+    """卡片新闻：Google News RSS（富途）→ Bing → 磁盘缓存"""
     cached = cache_get("card_news")
     if cached:
         return cached
 
     result = {}
-    for key, query in _CARD_NEWS_QUERIES.items():
-        result[key] = _fetch_futu_news(query, count=3)
+    for key in _CARD_NEWS_GOOGLE:
+        result[key] = _fetch_card_news_one(key, count=3)
 
+    # 磁盘回退：对空列表的 key 用上次缓存补齐
+    disk = _load_disk(_CARD_NEWS_DISK) or {}
+    for key in result:
+        if not result[key] and disk.get(key):
+            result[key] = disk[key]
+
+    _save_disk(_CARD_NEWS_DISK, result)
     cache_set("card_news", result, ttl=600)
     return result
 
