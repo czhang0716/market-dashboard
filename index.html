@@ -371,14 +371,9 @@
       const res  = await fetch('/api/ma', { cache: 'no-store' });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
-      renderMA('sp500',  json.data.sp500);
-      renderMA('nasdaq', json.data.nasdaq);
-      renderMA('sox',    json.data.sox);
-      renderMA('crcl',   json.data.crcl);
-      renderMA('nbis',   json.data.nbis);
-      renderMA('uuuu',   json.data.uuuu);
-      renderMA('uamy',   json.data.uamy);
-      renderMA('btcusd', json.data.btcusd);
+      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd'].forEach(k => {
+        if (json.data[k]) renderMA(k, json.data[k]);
+      });
     } catch (e) {
       console.warn('均线获取失败:', e.message);
     }
@@ -430,14 +425,15 @@
       const res  = await fetch('/api/quotes', { cache: 'no-store' });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || '服务器返回错误');
-      renderCard('sp500',  json.data.sp500);
-      renderCard('nasdaq', json.data.nasdaq);
-      renderCard('sox',    json.data.sox);
-      renderCard('crcl',   json.data.crcl);
-      renderCard('nbis',   json.data.nbis);
-      renderCard('uuuu',   json.data.uuuu);
-      renderCard('uamy',   json.data.uamy);
-      renderCard('btcusd', json.data.btcusd);
+      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd'].forEach(k => {
+        if (json.data[k]) renderCard(k, json.data[k]);
+        else {
+          document.getElementById(`card-${k}`).classList.remove('skeleton');
+          document.getElementById(`${k}-price`).textContent  = '--';
+          document.getElementById(`${k}-change`).textContent = '休市';
+          document.getElementById(`${k}-change`).className   = 'card-change flat';
+        }
+      });
       showUpdated();
     } catch (e) {
       ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd'].forEach(k => {
