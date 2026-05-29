@@ -211,14 +211,60 @@ def get_ma_data():
 # ── 新闻数据（富途 via Google News RSS）────────────────────────────────────
 
 import xml.etree.ElementTree as ET
+from email.utils import parsedate_to_datetime
+
+_CARD_NEWS_QUERIES = {
+    "sp500":  "site%3Afutunn.com+%E6%A0%87%E6%99%AE500",
+    "nasdaq": "site%3Afutunn.com+%E7%BA%B3%E6%8C%87",
+    "sox":    "site%3Afutunn.com+%E8%B4%B9%E5%9F%8E%E5%8D%8A%E5%AF%BC%E4%BD%93",
+    "crcl":   "site%3Afutunn.com+Circle+USDC",
+    "nbis":   "site%3Afutunn.com+Nebius",
+    "uuuu":   "site%3Afutunn.com+%E9%93%80+%E6%A0%B8%E8%83%BD",
+    "uamy":   "site%3Afutunn.com+%E9%94%91+Antimony",
+    "btcusd": "site%3Afutunn.com+%E6%AF%94%E7%89%B9%E5%B8%81",
+}
+
+
+def _fetch_futu_news(query: str, count: int = 2) -> list:
+    """从 Google News RSS 抓取富途新闻，返回最多 count 条"""
+    rss_url = (
+        f"https://news.google.com/rss/search?q={query}"
+        "&hl=zh-CN&gl=CN&ceid=CN%3Azh-Hans"
+    )
+    try:
+        req = urllib.request.Request(rss_url, headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/124.0.0.0 Safari/537.36"
+        })
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            xml_text = resp.read().decode("utf-8", errors="ignore")
+        root  = ET.fromstring(xml_text)
+        items = root.findall("./channel/item")
+        news  = []
+        for item in items[:count]:
+            title = (item.findtext("title") or "").strip()
+            link  = (item.findtext("link")  or "").strip()
+            pub   = (item.findtext("pubDate") or "").strip()
+            if not title or not link:
+                continue
+            ts = 0
+            try:
+                ts = int(parsedate_to_datetime(pub).timestamp())
+            except Exception:
+                pass
+            news.append({"title": title, "url": link, "time": ts, "source": "富途牛牛"})
+        return news
+    except Exception:
+        return []
+
 
 def get_news(count=10):
-    """从 Google News 抓取 futunn.com 美股新闻，缓存 5 分钟"""
+    """从 Google News 抓取 futunn.com 美股新闻（底部新闻栏），缓存 5 分钟"""
     cached = cache_get("news")
     if cached:
         return cached
 
-    # 搜索富途网站上的美股相关新闻
     rss_url = (
         "https://news.google.com/rss/search"
         "?q=site%3Afutunn.com+%E7%BE%8E%E8%82%A1"
@@ -241,23 +287,29 @@ def get_news(count=10):
         pub   = (item.findtext("pubDate") or "").strip()
         if not title or not link:
             continue
-        # pubDate 格式：Thu, 29 May 2026 03:00:00 GMT
         ts = 0
         try:
-            from email.utils import parsedate_to_datetime
             ts = int(parsedate_to_datetime(pub).timestamp())
         except Exception:
             pass
-        news.append({
-            "title":  title,
-            "url":    link,
-            "intro":  "",
-            "time":   ts,
-            "source": "富途牛牛",
-        })
+        news.append({"title": title, "url": link, "intro": "", "time": ts, "source": "富途牛牛"})
 
     cache_set("news", news, ttl=300)
     return news
+
+
+def get_card_news():
+    """为每张卡片抓取2条相关富途新闻，缓存10分钟"""
+    cached = cache_get("card_news")
+    if cached:
+        return cached
+
+    result = {}
+    for key, query in _CARD_NEWS_QUERIES.items():
+        result[key] = _fetch_futu_news(query, count=2)
+
+    cache_set("card_news", result, ttl=600)
+    return result
 
 
 # ── HTTP 服务器 ───────────────────────────────────────────────────────────
@@ -308,6 +360,12 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/news":
             try:
                 self.send_json({"ok": True, "data": get_news()})
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, status=502)
+
+        elif self.path == "/api/card-news":
+            try:
+                self.send_json({"ok": True, "data": get_card_news()})
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, status=502)
 

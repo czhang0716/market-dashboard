@@ -119,7 +119,27 @@
     .ma-item.nearest { border: 1px solid #58a6ff44; background: #1c2a3a; }
     .ma-item.nearest .ma-label { color: #58a6ff; }
 
-    /* ── 新闻区块 ── */
+    /* ── 卡片内新闻 ── */
+    .card-news {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #21262d;
+    }
+    .card-news-item {
+      padding: 0.3rem 0;
+      border-bottom: 1px solid #21262d11;
+    }
+    .card-news-item:last-child { border-bottom: none; }
+    .card-news-item a {
+      font-size: 0.75rem;
+      color: #8b949e;
+      text-decoration: none;
+      line-height: 1.4;
+      display: block;
+    }
+    .card-news-item a:hover { color: #58a6ff; }
+
+    /* ── 底部新闻区块 ── */
     .news-section {
       width: 100%;
       max-width: 700px;
@@ -212,6 +232,7 @@
       <div class="card-change flat" id="sp500-change">── ──</div>
     </div>
     <div class="ma-section" id="sp500-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-sp500" style="display:none"></div>
   </div>
 
   <div class="card skeleton" id="card-nasdaq">
@@ -222,6 +243,7 @@
       <div class="card-change flat" id="nasdaq-change">── ──</div>
     </div>
     <div class="ma-section" id="nasdaq-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-nasdaq" style="display:none"></div>
   </div>
 
   <div class="card skeleton" id="card-sox">
@@ -232,6 +254,7 @@
       <div class="card-change flat" id="sox-change">── ──</div>
     </div>
     <div class="ma-section" id="sox-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-sox" style="display:none"></div>
   </div>
 
   <div class="card skeleton" id="card-crcl">
@@ -242,6 +265,7 @@
       <div class="card-change flat" id="crcl-change">── ──</div>
     </div>
     <div class="ma-section" id="crcl-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-crcl" style="display:none"></div>
   </div>
 
   <div class="card skeleton" id="card-nbis">
@@ -252,6 +276,7 @@
       <div class="card-change flat" id="nbis-change">── ──</div>
     </div>
     <div class="ma-section" id="nbis-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-nbis" style="display:none"></div>
   </div>
 
   <div class="card skeleton" id="card-uuuu">
@@ -262,6 +287,7 @@
       <div class="card-change flat" id="uuuu-change">── ──</div>
     </div>
     <div class="ma-section" id="uuuu-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-uuuu" style="display:none"></div>
   </div>
 
   <div class="card skeleton" id="card-uamy">
@@ -272,6 +298,7 @@
       <div class="card-change flat" id="uamy-change">── ──</div>
     </div>
     <div class="ma-section" id="uamy-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-uamy" style="display:none"></div>
   </div>
 
   <div class="card skeleton" id="card-btcusd">
@@ -282,6 +309,7 @@
       <div class="card-change flat" id="btcusd-change">── ──</div>
     </div>
     <div class="ma-section" id="btcusd-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-btcusd" style="display:none"></div>
   </div>
 </div>
 
@@ -444,13 +472,39 @@
     }
   }
 
+  function renderCardNews(key, items) {
+    const el = document.getElementById(`card-news-${key}`);
+    if (!el) return;
+    if (!items || items.length === 0) return;
+    el.innerHTML = items.map(item => `
+      <div class="card-news-item">
+        <a href="${item.url}" target="_blank" rel="noopener">${item.title}</a>
+      </div>`).join('');
+    el.style.display = 'block';
+  }
+
+  async function fetchCardNews() {
+    try {
+      const res  = await fetch('/api/card-news', { cache: 'no-store' });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error);
+      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd'].forEach(k => {
+        if (json.data[k]) renderCardNews(k, json.data[k]);
+      });
+    } catch (e) {
+      console.warn('卡片新闻获取失败:', e.message);
+    }
+  }
+
   showDate();
   fetchAll();
   fetchNews();
   fetchMA();
-  setInterval(fetchAll,  60_000);
-  setInterval(fetchNews, 300_000);
-  setInterval(fetchMA,   300_000);  // 均线每 5 分钟刷新
+  fetchCardNews();
+  setInterval(fetchAll,      60_000);
+  setInterval(fetchNews,    300_000);
+  setInterval(fetchMA,      300_000);
+  setInterval(fetchCardNews, 600_000);
 </script>
 
 </body>
