@@ -84,39 +84,30 @@
 
     /* ── 均线区块 ── */
     .ma-section {
-      margin-top: 1rem;
-      padding-top: 1rem;
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
       border-top: 1px solid #21262d;
     }
 
-    .ma-nearest {
-      font-size: 0.82rem;
-      color: #8b949e;
-      margin-bottom: 0.6rem;
-    }
-    .ma-nearest strong { color: #58a6ff; }
-
-    .ma-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
+    .ma-row {
+      display: flex;
+      flex-wrap: wrap;
       gap: 0.3rem;
     }
 
-    .ma-item {
+    .ma-tag {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #484f58;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
       background: #0d1117;
-      border-radius: 5px;
-      padding: 0.25rem 0.3rem;
-      text-align: center;
-      min-width: 0;
     }
-
-    .ma-item .ma-label { font-size: 0.62rem; color: #484f58; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ma-item .ma-val   { font-size: 0.72rem; color: #c9d1d9; font-weight: 600; margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .ma-item .ma-diff  { font-size: 0.62rem; margin-top: 0.1rem; }
-    .ma-item .ma-diff.up   { color: #3fb950; }
-    .ma-item .ma-diff.down { color: #f85149; }
-    .ma-item.nearest { border: 1px solid #58a6ff44; background: #1c2a3a; }
-    .ma-item.nearest .ma-label { color: #58a6ff; }
+    .ma-tag.nearest {
+      color: #58a6ff;
+      background: #1c2a3a;
+      border: 1px solid #58a6ff44;
+    }
 
     /* ── 卡片内新闻 ── */
     .card-news {
@@ -275,6 +266,16 @@
     <div class="card-news" id="card-news-mu" style="display:none"></div>
   </div>
 
+  <div class="card skeleton" id="card-nbis">
+    <div class="card-name">Nebius Group &nbsp;NBIS</div>
+    <div class="card-price-row">
+      <div class="card-price" id="nbis-price">加载中...</div>
+      <div class="card-change flat" id="nbis-change">── ──</div>
+    </div>
+    <div class="ma-section" id="nbis-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-nbis" style="display:none"></div>
+  </div>
+
   <div class="card skeleton" id="card-googl">
     <div class="card-name">Alphabet &nbsp;GOOGL</div>
     <div class="card-price-row">
@@ -286,7 +287,6 @@
   </div>
 
   <div class="card skeleton" id="card-crcl">
-    <div class="card-label">美国股票</div>
     <div class="card-name">Circle Internet &nbsp;CRCL</div>
     <div class="card-price-row">
       <div class="card-price" id="crcl-price">加载中...</div>
@@ -296,19 +296,7 @@
     <div class="card-news" id="card-news-crcl" style="display:none"></div>
   </div>
 
-  <div class="card skeleton" id="card-nbis">
-    <div class="card-label">美国股票</div>
-    <div class="card-name">Nebius Group &nbsp;NBIS</div>
-    <div class="card-price-row">
-      <div class="card-price" id="nbis-price">加载中...</div>
-      <div class="card-change flat" id="nbis-change">── ──</div>
-    </div>
-    <div class="ma-section" id="nbis-ma" style="display:none"></div>
-    <div class="card-news" id="card-news-nbis" style="display:none"></div>
-  </div>
-
   <div class="card skeleton" id="card-uuuu">
-    <div class="card-label">美国股票</div>
     <div class="card-name">Energy Fuels &nbsp;UUUU</div>
     <div class="card-price-row">
       <div class="card-price" id="uuuu-price">加载中...</div>
@@ -408,21 +396,14 @@
     if (!el) return;
     const { mas, highlighted } = d;
     const highlightSet = new Set(highlighted || []);
-    const dec = ['sp500', 'nasdaq', 'sox', 'btcusd', 'gold'].includes(key) ? 0 : 2;
 
-    const gridItems = Object.entries(mas).map(([name, m]) => {
+    const tags = Object.keys(mas).map(name => {
       const isHighlighted = highlightSet.has(name);
-      const diffCls  = m.diff >= 0 ? 'up' : 'down';
-      const diffSign = m.diff >= 0 ? '+' : '';
-      return `
-        <div class="ma-item ${isHighlighted ? 'nearest' : ''}">
-          <div class="ma-label">${name}</div>
-          <div class="ma-val">${m.value.toLocaleString('en-US', {minimumFractionDigits:dec, maximumFractionDigits:dec})}</div>
-          <div class="ma-diff ${diffCls}">${diffSign}${m.diff_pct.toFixed(2)}%</div>
-        </div>`;
+      const num = name.replace('EMA', '');
+      return `<span class="ma-tag ${isHighlighted ? 'nearest' : ''}">${num}</span>`;
     }).join('');
 
-    el.innerHTML = `<div class="ma-grid">${gridItems}</div>`;
+    el.innerHTML = `<div class="ma-row">${tags}</div>`;
     el.style.display = 'block';
   }
 

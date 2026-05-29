@@ -341,7 +341,7 @@ def get_card_news():
 
     result = {}
     for key, query in _CARD_NEWS_QUERIES.items():
-        result[key] = _fetch_futu_news(query, count=2)
+        result[key] = _fetch_futu_news(query, count=3)
 
     cache_set("card_news", result, ttl=600)
     return result
