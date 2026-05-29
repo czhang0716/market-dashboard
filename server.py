@@ -10,6 +10,7 @@ import os
 import ssl
 import time
 import urllib.request
+import pandas as pd
 import yfinance as yf
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -31,12 +32,12 @@ def cache_set(key, data, ttl=60):
 # ── 行情数据（yfinance）────────────────────────────────────────────────────
 
 def get_quotes():
-    """获取所有标的实时报价，逐个下载避免单个失败影响全部"""
+    """获取所有标的实时报价"""
     cached = cache_get("quotes")
     if cached:
         return cached
 
-    symbols = {
+    symbols_map = {
         "sp500":  ("^GSPC",   "S&P 500"),
         "nasdaq": ("^IXIC",   "NASDAQ"),
         "sox":    ("^SOX",    "SOX 半导体"),
@@ -46,14 +47,19 @@ def get_quotes():
         "uamy":   ("UAMY",    "US Antimony (UAMY)"),
         "btcusd": ("BTC-USD", "Bitcoin (BTC/USD)"),
     }
+    all_symbols = [v[0] for v in symbols_map.values()]
+
+    df = yf.download(all_symbols, period="5d", interval="1d",
+                     progress=False, auto_adjust=True, group_by="ticker")
 
     result = {}
-    errors = []
-    for key, (symbol, name) in symbols.items():
+    for key, (symbol, name) in symbols_map.items():
         try:
-            df = yf.download(symbol, period="5d", interval="1d",
-                             progress=False, auto_adjust=True)
-            prices = df["Close"].dropna()
+            # group_by="ticker" 时列结构为 (symbol, field)
+            if isinstance(df.columns, pd.MultiIndex):
+                prices = df[symbol]["Close"].dropna()
+            else:
+                prices = df["Close"].dropna()
             if len(prices) < 2:
                 raise ValueError(f"{symbol} 数据不足")
             price      = float(prices.iloc[-1])
@@ -63,10 +69,10 @@ def get_quotes():
             result[key] = {"name": name, "price": round(price, 2),
                            "change": change, "change_pct": change_pct}
         except Exception as e:
-            errors.append(f"{symbol}: {e}")
+            print(f"  [quotes] {symbol} 跳过: {e}")
 
     if not result:
-        raise ValueError("所有标的获取失败: " + "; ".join(errors))
+        raise ValueError("所有标的获取失败")
 
     cache_set("quotes", result, ttl=60)
     return result
