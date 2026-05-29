@@ -326,25 +326,23 @@
   function renderMA(key, d) {
     const el = document.getElementById(`${key}-ma`);
     if (!el) return;
-    const { mas, nearest } = d;
-    const sign = nearest.diff >= 0 ? '上方' : '下方';
-    const absPct = Math.abs(nearest.diff_pct).toFixed(2);
+    const { mas, highlighted } = d;
+    const highlightSet = new Set(highlighted || []);
     const dec = (key === 'sp500' || key === 'nasdaq') ? 0 : 2;
 
     const gridItems = Object.entries(mas).map(([name, m]) => {
-      const isNearest = name === nearest.name;
-      const diffCls   = m.diff >= 0 ? 'up' : 'down';
-      const diffSign  = m.diff >= 0 ? '+' : '';
+      const isHighlighted = highlightSet.has(name);
+      const diffCls  = m.diff >= 0 ? 'up' : 'down';
+      const diffSign = m.diff >= 0 ? '+' : '';
       return `
-        <div class="ma-item ${isNearest ? 'nearest' : ''}">
+        <div class="ma-item ${isHighlighted ? 'nearest' : ''}">
           <div class="ma-label">${name}</div>
           <div class="ma-val">${m.value.toLocaleString('en-US', {minimumFractionDigits:dec, maximumFractionDigits:dec})}</div>
           <div class="ma-diff ${diffCls}">${diffSign}${m.diff_pct.toFixed(2)}%</div>
         </div>`;
     }).join('');
 
-    el.innerHTML = `
-      <div class="ma-grid">${gridItems}</div>`;
+    el.innerHTML = `<div class="ma-grid">${gridItems}</div>`;
     el.style.display = 'block';
   }
 

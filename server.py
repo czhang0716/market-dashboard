@@ -96,20 +96,19 @@ def calc_ema(closes, period):
 
 
 def calc_mas(closes, price):
-    """计算各 EMA 及高亮均线
-    高亮规则：找到股价所在的所有区间中，跨度最大的那个，高亮该区间的下界均线。
-    区间定义（下界周期 → 上界周期）：
-      EMA5以上        → 高亮 EMA5
-      EMA5  ~ EMA10  → 高亮 EMA5
-      EMA10 ~ EMA15  → 高亮 EMA10
-      EMA15 ~ EMA30  → 高亮 EMA15
-      EMA30 ~ EMA45  → 高亮 EMA30
-      EMA45 ~ EMA60  → 高亮 EMA45
-      EMA60 ~ EMA80  → 高亮 EMA60
-      EMA80 ~ EMA100 → 高亮 EMA80
-      EMA100~ EMA120 → 高亮 EMA100
-      EMA120以下      → 高亮 EMA120
-    若股价同时落在多个区间（盘整），取跨度最大的区间。
+    """计算各 EMA 及高亮均线（多选）
+    区间规则（高亮该区间的下界均线）：
+      股价 >= EMA5             → 不高亮（EMA0~EMA5区间）
+      EMA5  > 股价 >= EMA10   → 高亮 EMA5
+      EMA10 > 股价 >= EMA15   → 高亮 EMA10
+      EMA15 > 股价 >= EMA30   → 高亮 EMA15
+      EMA30 > 股价 >= EMA45   → 高亮 EMA30
+      EMA45 > 股价 >= EMA60   → 高亮 EMA45
+      EMA60 > 股价 >= EMA80   → 高亮 EMA60
+      EMA80 > 股价 >= EMA100  → 高亮 EMA80
+      EMA100> 股价 >= EMA120  → 高亮 EMA100
+      股价 < EMA120            → 高亮 EMA120
+    均线交叉时股价可同时落入多个区间，全部高亮。
     """
     periods = [5, 10, 15, 20, 30, 45, 60, 80, 100, 120]
 
@@ -124,71 +123,48 @@ def calc_mas(closes, price):
                 "diff_pct": round(diff_pct, 2),
             }
     if not mas:
-        return {"mas": {}, "nearest": None}
+        return {"mas": {}, "highlighted": []}
 
     ema_vals = {p: mas[f"EMA{p}"]["value"] for p in periods if f"EMA{p}" in mas}
 
-    # 所有候选区间：(高亮周期, 区间跨度)
-    # 规则：股价 < 上界EMA 且 股价 >= 下界EMA → 高亮下界EMA
-    # 特殊：股价 >= EMA5 → 高亮EMA5（上界无穷大，跨度用 price - EMA5）
-    # 特殊：股价 < EMA120 → 高亮EMA120（下界无穷小，跨度用 EMA120 - price）
-    candidates = []
-
-    # 区间规则：(下界周期, 上界周期)，高亮下界
+    # 区间规则：(上界周期, 下界周期, 高亮周期)
+    # 股价在 [min(上界值,下界值), max(上界值,下界值)) 之间 → 高亮 高亮周期
     zone_rules = [
-        (5,   10),
-        (10,  15),
-        (15,  30),
-        (30,  45),
-        (45,  60),
-        (60,  80),
-        (80,  100),
-        (100, 120),
+        (5,   10,  5),
+        (10,  15,  10),
+        (15,  30,  15),
+        (30,  45,  30),
+        (45,  60,  45),
+        (60,  80,  60),
+        (80,  100, 80),
+        (100, 120, 100),
     ]
 
-    # 股价在 EMA5 以上
-    v5 = ema_vals.get(5)
-    if v5 is not None and price >= v5:
-        candidates.append(("EMA5", price - v5))
+    highlighted = set()
 
-    # 股价在 EMA120 以下
+    # 股价 < EMA120 → 高亮 EMA120
     v120 = ema_vals.get(120)
     if v120 is not None and price < v120:
-        candidates.append(("EMA120", v120 - price))
+        highlighted.add("EMA120")
 
-    # 中间各区间：两条均线都加入候选，取周期最长的
-    for lower_p, upper_p in zone_rules:
-        lower_val = ema_vals.get(lower_p)
+    # 检查各区间（均线值可能交叉，取实际大小判断）
+    for upper_p, lower_p, highlight_p in zone_rules:
         upper_val = ema_vals.get(upper_p)
-        if lower_val is None or upper_val is None:
+        lower_val = ema_vals.get(lower_p)
+        if upper_val is None or lower_val is None:
             continue
-        hi = max(lower_val, upper_val)
-        lo = min(lower_val, upper_val)
+        hi = max(upper_val, lower_val)
+        lo = min(upper_val, lower_val)
         if lo <= price < hi:
-            span = hi - lo
-            candidates.append((f"EMA{lower_p}", span))
-            candidates.append((f"EMA{upper_p}", span))
+            highlighted.add(f"EMA{highlight_p}")
 
-    if candidates:
-        # 取周期最长的区间（EMA120 > EMA100 > ... > EMA5）
-        period_order = {"EMA120": 120, "EMA100": 100, "EMA80": 80,
-                        "EMA60": 60, "EMA45": 45, "EMA30": 30,
-                        "EMA15": 15, "EMA10": 10, "EMA5": 5}
-        highlight_name = max(candidates, key=lambda x: period_order.get(x[0], 0))[0]
-    else:
-        # 兜底：取绝对差最小的均线
-        nearest = min(mas.items(), key=lambda x: abs(x[1]["diff_pct"]))
-        highlight_name = nearest[0]
+    # 将高亮信息写入 mas
+    for name in mas:
+        mas[name]["highlighted"] = name in highlighted
 
-    nearest_data = mas.get(highlight_name, list(mas.values())[0])
     return {
         "mas": mas,
-        "nearest": {
-            "name":     highlight_name,
-            "value":    nearest_data["value"],
-            "diff":     nearest_data["diff"],
-            "diff_pct": nearest_data["diff_pct"],
-        }
+        "highlighted": sorted(highlighted, key=lambda x: int(x[3:])),
     }
 
 
