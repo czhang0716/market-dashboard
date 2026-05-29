@@ -208,34 +208,52 @@ def get_ma_data():
     return result
 
 
-# ── 新闻数据（新浪财经）─────────────────────────────────────────────────────
+# ── 新闻数据（富途 via Google News RSS）────────────────────────────────────
+
+import xml.etree.ElementTree as ET
 
 def get_news(count=10):
-    """从新浪财经抓取美股新闻，缓存 5 分钟"""
+    """从 Google News 抓取 futunn.com 美股新闻，缓存 5 分钟"""
     cached = cache_get("news")
     if cached:
         return cached
 
-    url = f"https://feed.mix.sina.com.cn/api/roll/get?pageid=153&lid=2516&num={count}&page=1"
-    ctx = ssl._create_unverified_context()
-    req = urllib.request.Request(url, headers={
-        "Referer":    "https://finance.sina.com.cn",
+    # 搜索富途网站上的美股相关新闻
+    rss_url = (
+        "https://news.google.com/rss/search"
+        "?q=site%3Afutunn.com+%E7%BE%8E%E8%82%A1"
+        "&hl=zh-CN&gl=CN&ceid=CN%3Azh-Hans"
+    )
+    req = urllib.request.Request(rss_url, headers={
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                       "AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "Chrome/124.0.0.0 Safari/537.36",
+                      "Chrome/124.0.0.0 Safari/537.36"
     })
-    with urllib.request.urlopen(req, timeout=10, context=ctx) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        xml_text = resp.read().decode("utf-8", errors="ignore")
 
-    items = data.get("result", {}).get("data", [])
+    root  = ET.fromstring(xml_text)
+    items = root.findall("./channel/item")
     news  = []
-    for item in items:
+    for item in items[:count]:
+        title = (item.findtext("title") or "").strip()
+        link  = (item.findtext("link")  or "").strip()
+        pub   = (item.findtext("pubDate") or "").strip()
+        if not title or not link:
+            continue
+        # pubDate 格式：Thu, 29 May 2026 03:00:00 GMT
+        ts = 0
+        try:
+            from email.utils import parsedate_to_datetime
+            ts = int(parsedate_to_datetime(pub).timestamp())
+        except Exception:
+            pass
         news.append({
-            "title":  item.get("title", "").strip(),
-            "url":    item.get("url",   "").strip(),
-            "intro":  item.get("intro", "").strip(),
-            "time":   item.get("ctime", 0),
-            "source": item.get("media_name", "新浪财经").strip(),
+            "title":  title,
+            "url":    link,
+            "intro":  "",
+            "time":   ts,
+            "source": "富途牛牛",
         })
 
     cache_set("news", news, ttl=300)
