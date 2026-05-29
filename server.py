@@ -37,7 +37,7 @@ def get_quotes():
         return cached
 
     tickers = yf.download(
-        ["^GSPC", "^IXIC", "CRCL", "NBIS", "UUUU", "UAMY"],
+        ["^GSPC", "^IXIC", "^SOX", "CRCL", "NBIS", "UUUU", "UAMY", "BTC-USD"],
         period="2d",
         interval="1d",
         progress=False,
@@ -57,12 +57,14 @@ def get_quotes():
                 "change": change, "change_pct": change_pct}
 
     result = {
-        "sp500":  build_quote("^GSPC", "S&P 500"),
-        "nasdaq": build_quote("^IXIC", "NASDAQ"),
-        "crcl":   build_quote("CRCL",  "Circle (CRCL)"),
-        "nbis":   build_quote("NBIS",  "Nebius (NBIS)"),
-        "uuuu":   build_quote("UUUU",  "Energy Fuels (UUUU)"),
-        "uamy":   build_quote("UAMY",  "US Antimony (UAMY)"),
+        "sp500":  build_quote("^GSPC",   "S&P 500"),
+        "nasdaq": build_quote("^IXIC",   "NASDAQ"),
+        "sox":    build_quote("^SOX",    "SOX 半导体"),
+        "crcl":   build_quote("CRCL",    "Circle (CRCL)"),
+        "nbis":   build_quote("NBIS",    "Nebius (NBIS)"),
+        "uuuu":   build_quote("UUUU",    "Energy Fuels (UUUU)"),
+        "uamy":   build_quote("UAMY",    "US Antimony (UAMY)"),
+        "btcusd": build_quote("BTC-USD", "Bitcoin (BTC/USD)"),
     }
     cache_set("quotes", result, ttl=60)
     return result
@@ -177,18 +179,22 @@ def get_ma_data():
     quotes        = get_quotes()
     sp500_closes  = fetch_closes("^GSPC")
     nasdaq_closes = fetch_closes("^IXIC")
+    sox_closes    = fetch_closes("^SOX")
     crcl_closes   = fetch_closes("CRCL")
     nbis_closes   = fetch_closes("NBIS")
     uuuu_closes   = fetch_closes("UUUU")
     uamy_closes   = fetch_closes("UAMY")
+    btc_closes    = fetch_closes("BTC-USD")
 
     result = {
         "sp500":  calc_mas(sp500_closes,  quotes["sp500"]["price"]),
         "nasdaq": calc_mas(nasdaq_closes, quotes["nasdaq"]["price"]),
+        "sox":    calc_mas(sox_closes,    quotes["sox"]["price"]),
         "crcl":   calc_mas(crcl_closes,   quotes["crcl"]["price"]),
         "nbis":   calc_mas(nbis_closes,   quotes["nbis"]["price"]),
         "uuuu":   calc_mas(uuuu_closes,   quotes["uuuu"]["price"]),
         "uamy":   calc_mas(uamy_closes,   quotes["uamy"]["price"]),
+        "btcusd": calc_mas(btc_closes,    quotes["btcusd"]["price"]),
     }
     cache_set("ma_data", result, ttl=900)
     return result

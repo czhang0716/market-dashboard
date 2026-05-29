@@ -224,6 +224,16 @@
     <div class="ma-section" id="nasdaq-ma" style="display:none"></div>
   </div>
 
+  <div class="card skeleton" id="card-sox">
+    <div class="card-label">美国股市</div>
+    <div class="card-name">费城半导体 &nbsp;SOX</div>
+    <div class="card-price-row">
+      <div class="card-price" id="sox-price">加载中...</div>
+      <div class="card-change flat" id="sox-change">── ──</div>
+    </div>
+    <div class="ma-section" id="sox-ma" style="display:none"></div>
+  </div>
+
   <div class="card skeleton" id="card-crcl">
     <div class="card-label">美国股票</div>
     <div class="card-name">Circle Internet &nbsp;CRCL</div>
@@ -262,6 +272,16 @@
       <div class="card-change flat" id="uamy-change">── ──</div>
     </div>
     <div class="ma-section" id="uamy-ma" style="display:none"></div>
+  </div>
+
+  <div class="card skeleton" id="card-btcusd">
+    <div class="card-label">加密货币</div>
+    <div class="card-name">Bitcoin &nbsp;BTC/USD</div>
+    <div class="card-price-row">
+      <div class="card-price" id="btcusd-price">加载中...</div>
+      <div class="card-change flat" id="btcusd-change">── ──</div>
+    </div>
+    <div class="ma-section" id="btcusd-ma" style="display:none"></div>
   </div>
 </div>
 
@@ -303,7 +323,7 @@
     const arrow = isUp ? '▲' : '▼';
     const cls   = Math.abs(d.change) < 0.001 ? 'flat' : (isUp ? 'up' : 'down');
     const sign  = isUp ? '+' : '';
-    const dec   = (key === 'sp500' || key === 'nasdaq') ? 0 : 2;
+    const dec   = ['sp500', 'nasdaq', 'sox', 'btcusd'].includes(key) ? 0 : 2;
 
     document.getElementById(`${key}-price`).textContent =
       formatPrice(d.price, dec);
@@ -328,7 +348,7 @@
     if (!el) return;
     const { mas, highlighted } = d;
     const highlightSet = new Set(highlighted || []);
-    const dec = (key === 'sp500' || key === 'nasdaq') ? 0 : 2;
+    const dec = ['sp500', 'nasdaq', 'sox', 'btcusd'].includes(key) ? 0 : 2;
 
     const gridItems = Object.entries(mas).map(([name, m]) => {
       const isHighlighted = highlightSet.has(name);
@@ -353,10 +373,12 @@
       if (!json.ok) throw new Error(json.error);
       renderMA('sp500',  json.data.sp500);
       renderMA('nasdaq', json.data.nasdaq);
+      renderMA('sox',    json.data.sox);
       renderMA('crcl',   json.data.crcl);
       renderMA('nbis',   json.data.nbis);
       renderMA('uuuu',   json.data.uuuu);
       renderMA('uamy',   json.data.uamy);
+      renderMA('btcusd', json.data.btcusd);
     } catch (e) {
       console.warn('均线获取失败:', e.message);
     }
@@ -397,7 +419,7 @@
   async function fetchAll() {
     hideError();
 
-    ['sp500', 'nasdaq', 'crcl', 'nbis', 'uuuu', 'uamy'].forEach(k => {
+    ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd'].forEach(k => {
       document.getElementById(`card-${k}`).classList.add('skeleton');
       document.getElementById(`${k}-price`).textContent  = '加载中...';
       document.getElementById(`${k}-change`).textContent = '── ──';
@@ -410,13 +432,15 @@
       if (!json.ok) throw new Error(json.error || '服务器返回错误');
       renderCard('sp500',  json.data.sp500);
       renderCard('nasdaq', json.data.nasdaq);
+      renderCard('sox',    json.data.sox);
       renderCard('crcl',   json.data.crcl);
       renderCard('nbis',   json.data.nbis);
       renderCard('uuuu',   json.data.uuuu);
       renderCard('uamy',   json.data.uamy);
+      renderCard('btcusd', json.data.btcusd);
       showUpdated();
     } catch (e) {
-      ['sp500', 'nasdaq', 'crcl', 'nbis', 'uuuu', 'uamy'].forEach(k => {
+      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd'].forEach(k => {
         document.getElementById(`card-${k}`).classList.remove('skeleton');
         document.getElementById(`${k}-price`).textContent  = '--';
         document.getElementById(`${k}-change`).textContent = '获取失败';
