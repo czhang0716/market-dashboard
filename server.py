@@ -31,41 +31,43 @@ def cache_set(key, data, ttl=60):
 # ── 行情数据（yfinance）────────────────────────────────────────────────────
 
 def get_quotes():
-    """获取标普500、纳斯达克、CRCL、NBIS 实时报价"""
+    """获取所有标的实时报价，逐个下载避免单个失败影响全部"""
     cached = cache_get("quotes")
     if cached:
         return cached
 
-    tickers = yf.download(
-        ["^GSPC", "^IXIC", "^SOX", "CRCL", "NBIS", "UUUU", "UAMY", "BTC-USD"],
-        period="2d",
-        interval="1d",
-        progress=False,
-        auto_adjust=True,
-    )
-    closes = tickers["Close"]
-
-    def build_quote(symbol, name):
-        prices = closes[symbol].dropna()
-        if len(prices) < 2:
-            raise ValueError(f"{symbol} 数据不足")
-        price      = float(prices.iloc[-1])
-        prev       = float(prices.iloc[-2])
-        change     = round(price - prev, 2)
-        change_pct = round((change / prev) * 100, 2)
-        return {"name": name, "price": round(price, 2),
-                "change": change, "change_pct": change_pct}
-
-    result = {
-        "sp500":  build_quote("^GSPC",   "S&P 500"),
-        "nasdaq": build_quote("^IXIC",   "NASDAQ"),
-        "sox":    build_quote("^SOX",    "SOX 半导体"),
-        "crcl":   build_quote("CRCL",    "Circle (CRCL)"),
-        "nbis":   build_quote("NBIS",    "Nebius (NBIS)"),
-        "uuuu":   build_quote("UUUU",    "Energy Fuels (UUUU)"),
-        "uamy":   build_quote("UAMY",    "US Antimony (UAMY)"),
-        "btcusd": build_quote("BTC-USD", "Bitcoin (BTC/USD)"),
+    symbols = {
+        "sp500":  ("^GSPC",   "S&P 500"),
+        "nasdaq": ("^IXIC",   "NASDAQ"),
+        "sox":    ("^SOX",    "SOX 半导体"),
+        "crcl":   ("CRCL",    "Circle (CRCL)"),
+        "nbis":   ("NBIS",    "Nebius (NBIS)"),
+        "uuuu":   ("UUUU",    "Energy Fuels (UUUU)"),
+        "uamy":   ("UAMY",    "US Antimony (UAMY)"),
+        "btcusd": ("BTC-USD", "Bitcoin (BTC/USD)"),
     }
+
+    result = {}
+    errors = []
+    for key, (symbol, name) in symbols.items():
+        try:
+            df = yf.download(symbol, period="5d", interval="1d",
+                             progress=False, auto_adjust=True)
+            prices = df["Close"].dropna()
+            if len(prices) < 2:
+                raise ValueError(f"{symbol} 数据不足")
+            price      = float(prices.iloc[-1])
+            prev       = float(prices.iloc[-2])
+            change     = round(price - prev, 2)
+            change_pct = round((change / prev) * 100, 2)
+            result[key] = {"name": name, "price": round(price, 2),
+                           "change": change, "change_pct": change_pct}
+        except Exception as e:
+            errors.append(f"{symbol}: {e}")
+
+    if not result:
+        raise ValueError("所有标的获取失败: " + "; ".join(errors))
+
     cache_set("quotes", result, ttl=60)
     return result
 
