@@ -225,6 +225,17 @@ def get_ma_data():
 import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 
+# 过滤中国/A股/中概股相关新闻
+_CN_FILTER_KEYWORDS = [
+    "中国", "A股", "中概", "港股", "沪市", "深市", "沪深",
+    "上证", "深证", "创业板", "科创板", "北交所", "新三板",
+    "人民币", "央行", "证监会", "国内", "A股市场",
+]
+
+def _is_cn_news(title: str) -> bool:
+    """如果标题含中国/A股/中概股关键词，返回 True（需过滤掉）"""
+    return any(kw in title for kw in _CN_FILTER_KEYWORDS)
+
 _CARD_NEWS_QUERIES = {
     "sp500":  "site%3Afutunn.com+%E6%A0%87%E6%99%AE500",
     "nasdaq": "site%3Afutunn.com+%E7%BA%B3%E6%8C%87",
@@ -258,11 +269,15 @@ def _fetch_futu_news(query: str, count: int = 2) -> list:
         root  = ET.fromstring(xml_text)
         items = root.findall("./channel/item")
         news  = []
-        for item in items[:count]:
+        for item in items:
+            if len(news) >= count:
+                break
             title = (item.findtext("title") or "").strip()
             link  = (item.findtext("link")  or "").strip()
             pub   = (item.findtext("pubDate") or "").strip()
             if not title or not link:
+                continue
+            if _is_cn_news(title):
                 continue
             ts = 0
             try:
@@ -297,11 +312,15 @@ def get_news(count=10):
     root  = ET.fromstring(xml_text)
     items = root.findall("./channel/item")
     news  = []
-    for item in items[:count]:
+    for item in items:
+        if len(news) >= count:
+            break
         title = (item.findtext("title") or "").strip()
         link  = (item.findtext("link")  or "").strip()
         pub   = (item.findtext("pubDate") or "").strip()
         if not title or not link:
+            continue
+        if _is_cn_news(title):
             continue
         ts = 0
         try:

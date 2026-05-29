@@ -22,7 +22,6 @@
     header { text-align: center; margin-bottom: 2.5rem; }
     header h1 { font-size: 1.6rem; font-weight: 600; letter-spacing: 0.04em; color: #f0f6fc; }
     #today-date   { margin-top: 0.5rem;  font-size: 1rem;  color: #8b949e; }
-    #last-updated { margin-top: 0.25rem; font-size: 0.8rem; color: #484f58; }
 
     .cards {
       display: grid;
@@ -216,9 +215,8 @@
 <body>
 
 <header>
-  <h1>📈 Jack Zhang 市场行情看板</h1>
+  <h1>Jack Zhang 市场行情看板</h1>
   <div id="today-date"></div>
-  <div id="last-updated"></div>
 </header>
 
 <div id="error-banner"></div>
@@ -376,12 +374,6 @@
       new Date().toLocaleDateString('zh-CN', opts);
   }
 
-  function showUpdated() {
-    const t = new Date().toLocaleTimeString('zh-CN',
-      { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    document.getElementById('last-updated').textContent = `最后更新：${t}`;
-  }
-
   function formatPrice(n, decimals = 2) {
     return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   }
@@ -502,7 +494,6 @@
           document.getElementById(`${k}-change`).className   = 'card-change flat';
         }
       });
-      showUpdated();
     } catch (e) {
       ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd', 'gold', 'googl', 'mu', 'nvda'].forEach(k => {
         document.getElementById(`card-${k}`).classList.remove('skeleton');
