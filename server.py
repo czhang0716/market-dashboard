@@ -46,6 +46,10 @@ def get_quotes():
         "uuuu":   ("UUUU",    "Energy Fuels (UUUU)"),
         "uamy":   ("UAMY",    "US Antimony (UAMY)"),
         "btcusd": ("BTC-USD", "Bitcoin (BTC/USD)"),
+        "gold":   ("GC=F",    "黄金 Gold"),
+        "googl":  ("GOOGL",   "Alphabet (GOOGL)"),
+        "mu":     ("MU",      "美光科技 (MU)"),
+        "nvda":   ("NVDA",    "英伟达 (NVDA)"),
     }
     all_symbols = [v[0] for v in symbols_map.values()]
 
@@ -193,6 +197,10 @@ def get_ma_data():
     uuuu_closes   = fetch_closes("UUUU")
     uamy_closes   = fetch_closes("UAMY")
     btc_closes    = fetch_closes("BTC-USD")
+    gold_closes   = fetch_closes("GC=F")
+    googl_closes  = fetch_closes("GOOGL")
+    mu_closes     = fetch_closes("MU")
+    nvda_closes   = fetch_closes("NVDA")
 
     result = {
         "sp500":  calc_mas(sp500_closes,  quotes["sp500"]["price"]),
@@ -203,6 +211,10 @@ def get_ma_data():
         "uuuu":   calc_mas(uuuu_closes,   quotes["uuuu"]["price"]),
         "uamy":   calc_mas(uamy_closes,   quotes["uamy"]["price"]),
         "btcusd": calc_mas(btc_closes,    quotes["btcusd"]["price"]),
+        "gold":   calc_mas(gold_closes,   quotes["gold"]["price"]),
+        "googl":  calc_mas(googl_closes,  quotes["googl"]["price"]),
+        "mu":     calc_mas(mu_closes,     quotes["mu"]["price"]),
+        "nvda":   calc_mas(nvda_closes,   quotes["nvda"]["price"]),
     }
     cache_set("ma_data", result, ttl=900)
     return result
@@ -222,6 +234,10 @@ _CARD_NEWS_QUERIES = {
     "uuuu":   "site%3Afutunn.com+%E9%93%80+%E6%A0%B8%E8%83%BD",
     "uamy":   "site%3Afutunn.com+%E9%94%91+Antimony",
     "btcusd": "site%3Afutunn.com+%E6%AF%94%E7%89%B9%E5%B8%81",
+    "gold":   "site%3Afutunn.com+%E9%BB%84%E9%87%91",
+    "googl":  "site%3Afutunn.com+Alphabet+GOOGL",
+    "mu":     "site%3Afutunn.com+%E7%BE%8E%E5%85%89%E7%A7%91%E6%8A%80",
+    "nvda":   "site%3Afutunn.com+%E8%8B%B1%E4%BC%9F%E8%BE%BE",
 }
 
 

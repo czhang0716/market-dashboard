@@ -311,6 +311,46 @@
     <div class="ma-section" id="btcusd-ma" style="display:none"></div>
     <div class="card-news" id="card-news-btcusd" style="display:none"></div>
   </div>
+
+  <div class="card skeleton" id="card-gold">
+    <div class="card-name">黄金现货 &nbsp;GOLD</div>
+    <div class="card-price-row">
+      <div class="card-price" id="gold-price">加载中...</div>
+      <div class="card-change flat" id="gold-change">── ──</div>
+    </div>
+    <div class="ma-section" id="gold-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-gold" style="display:none"></div>
+  </div>
+
+  <div class="card skeleton" id="card-googl">
+    <div class="card-name">Alphabet &nbsp;GOOGL</div>
+    <div class="card-price-row">
+      <div class="card-price" id="googl-price">加载中...</div>
+      <div class="card-change flat" id="googl-change">── ──</div>
+    </div>
+    <div class="ma-section" id="googl-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-googl" style="display:none"></div>
+  </div>
+
+  <div class="card skeleton" id="card-mu">
+    <div class="card-name">美光科技 &nbsp;MU</div>
+    <div class="card-price-row">
+      <div class="card-price" id="mu-price">加载中...</div>
+      <div class="card-change flat" id="mu-change">── ──</div>
+    </div>
+    <div class="ma-section" id="mu-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-mu" style="display:none"></div>
+  </div>
+
+  <div class="card skeleton" id="card-nvda">
+    <div class="card-name">英伟达 &nbsp;NVDA</div>
+    <div class="card-price-row">
+      <div class="card-price" id="nvda-price">加载中...</div>
+      <div class="card-change flat" id="nvda-change">── ──</div>
+    </div>
+    <div class="ma-section" id="nvda-ma" style="display:none"></div>
+    <div class="card-news" id="card-news-nvda" style="display:none"></div>
+  </div>
 </div>
 
 
@@ -351,7 +391,7 @@
     const arrow = isUp ? '▲' : '▼';
     const cls   = Math.abs(d.change) < 0.001 ? 'flat' : (isUp ? 'up' : 'down');
     const sign  = isUp ? '+' : '';
-    const dec   = ['sp500', 'nasdaq', 'sox', 'btcusd'].includes(key) ? 0 : 2;
+    const dec   = ['sp500', 'nasdaq', 'sox', 'btcusd', 'gold'].includes(key) ? 0 : 2;
 
     document.getElementById(`${key}-price`).textContent =
       formatPrice(d.price, dec);
@@ -376,7 +416,7 @@
     if (!el) return;
     const { mas, highlighted } = d;
     const highlightSet = new Set(highlighted || []);
-    const dec = ['sp500', 'nasdaq', 'sox', 'btcusd'].includes(key) ? 0 : 2;
+    const dec = ['sp500', 'nasdaq', 'sox', 'btcusd', 'gold'].includes(key) ? 0 : 2;
 
     const gridItems = Object.entries(mas).map(([name, m]) => {
       const isHighlighted = highlightSet.has(name);
@@ -399,7 +439,7 @@
       const res  = await fetch('/api/ma', { cache: 'no-store' });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
-      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd'].forEach(k => {
+      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd', 'gold', 'googl', 'mu', 'nvda'].forEach(k => {
         if (json.data[k]) renderMA(k, json.data[k]);
       });
     } catch (e) {
@@ -442,7 +482,7 @@
   async function fetchAll() {
     hideError();
 
-    ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd'].forEach(k => {
+    ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd', 'gold', 'googl', 'mu', 'nvda'].forEach(k => {
       document.getElementById(`card-${k}`).classList.add('skeleton');
       document.getElementById(`${k}-price`).textContent  = '加载中...';
       document.getElementById(`${k}-change`).textContent = '── ──';
@@ -453,7 +493,7 @@
       const res  = await fetch('/api/quotes', { cache: 'no-store' });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || '服务器返回错误');
-      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd'].forEach(k => {
+      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd', 'gold', 'googl', 'mu', 'nvda'].forEach(k => {
         if (json.data[k]) renderCard(k, json.data[k]);
         else {
           document.getElementById(`card-${k}`).classList.remove('skeleton');
@@ -464,7 +504,7 @@
       });
       showUpdated();
     } catch (e) {
-      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd'].forEach(k => {
+      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd', 'gold', 'googl', 'mu', 'nvda'].forEach(k => {
         document.getElementById(`card-${k}`).classList.remove('skeleton');
         document.getElementById(`${k}-price`).textContent  = '--';
         document.getElementById(`${k}-change`).textContent = '获取失败';
@@ -491,7 +531,7 @@
       const res  = await fetch('/api/card-news', { cache: 'no-store' });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
-      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd'].forEach(k => {
+      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd', 'gold', 'googl', 'mu', 'nvda'].forEach(k => {
         if (json.data[k]) renderCardNews(k, json.data[k]);
       });
     } catch (e) {
