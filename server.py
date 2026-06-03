@@ -311,11 +311,27 @@ _CARD_NEWS_BING = {
     "gold":   "%E9%BB%84%E9%87%91+%E7%BE%8E%E8%82%A1",
 }
 
-# 磁盘持久化缓存（新闻获取失败时回退）
+_CARD_NEWS_YAHOO = {
+    "sp500":  "%5EGSPC",
+    "nasdaq": "%5EIXIC",
+    "sox":    "%5ESOX",
+    "nvda":   "NVDA",
+    "mu":     "MU",
+    "nbis":   "NBIS",
+    "googl":  "GOOGL",
+    "crcl":   "CRCL",
+    "uuuu":   "UUUU",
+    "uamy":   "UAMY",
+    "btcusd": "BTC-USD",
+    "gold":   "GC%3DF",
+}
+
+# 磁盘持久化缓存（新闻抓取失败时回退，但仍限制在3天内）
 import json as _json
 from pathlib import Path as _Path
-_NEWS_DISK_CACHE   = _Path("news_cache.json")
-_CARD_NEWS_DISK    = _Path("card_news_cache.json")
+_NEWS_DISK_CACHE = _Path("news_cache.json")
+_CARD_NEWS_DISK = _Path("card_news_cache.json")
+_NEWS_MAX_AGE_SECONDS = 3 * 24 * 60 * 60
 
 
 def _save_disk(path: _Path, data) -> None:
@@ -333,48 +349,81 @@ def _load_disk(path: _Path):
     return None
 
 
+def _is_recent_ts(ts: int) -> bool:
+    return bool(ts) and (time.time() - ts <= _NEWS_MAX_AGE_SECONDS)
+
+
+def _filter_recent_news(items: list) -> list:
+    return [it for it in items if _is_recent_ts(int(it.get("time") or 0))]
+
+
+def _dedupe_news(items: list) -> list:
+    seen = set()
+    result = []
+    for it in items:
+        key = ((it.get("url") or "").strip(), (it.get("title") or "").strip())
+        if not key[0] and not key[1]:
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(it)
+    return result
+
+
+def _fetch_yahoo_news(ticker: str, count: int) -> list:
+    url = f"https://feeds.finance.yahoo.com/rss/2.0/headline?s={ticker}&region=US&lang=en-US"
+    return _fetch_rss(url, count, "Yahoo Finance", filter_cn=False)
+
+
 def _fetch_card_news_one(key: str, count: int) -> list:
-    """先试 Google News RSS（富途），失败再试 Bing News RSS"""
+    """先试 Google News RSS（富途），失败再试 Bing，最后用 Yahoo 英文补位。"""
+    zh_news = []
+
     g_query = _CARD_NEWS_GOOGLE.get(key, "")
     if g_query:
         url = (f"https://news.google.com/rss/search?q={g_query}"
                "&hl=zh-CN&gl=CN&ceid=CN%3Azh-Hans")
-        result = _fetch_rss(url, count, "富途牛牛", filter_cn=True)
-        if result:
-            return result
-    # 回退 Bing
+        zh_news.extend(_filter_recent_news(_fetch_rss(url, count * 3, "富途牛牛", filter_cn=True)))
+
     b_query = _CARD_NEWS_BING.get(key, "")
-    if b_query:
+    if b_query and len(_dedupe_news(zh_news)) < count:
         url = f"https://www.bing.com/news/search?q={b_query}&format=rss&setlang=zh-CN"
-        result = _fetch_rss(url, count, "Bing新闻", filter_cn=True)
-        if result:
-            return result
-    return []
+        zh_news.extend(_filter_recent_news(_fetch_rss(url, count * 3, "Bing新闻", filter_cn=True)))
+
+    zh_news = _dedupe_news(zh_news)[:count]
+    if len(zh_news) >= count:
+        return zh_news
+
+    ticker = _CARD_NEWS_YAHOO.get(key, "")
+    en_news = []
+    if ticker:
+        en_news = _filter_recent_news(_fetch_yahoo_news(ticker, count * 3))
+
+    return _dedupe_news(zh_news + en_news)[:count]
+
 
 
 def get_news(count: int = 10) -> list:
-    """底部大盘新闻：Google News RSS（富途美股）→ Bing → 磁盘缓存"""
+    """底部大盘新闻：只保留3天内中文新闻，不强行凑满。"""
     cached = cache_get("news")
     if cached:
         return cached
 
-    # 1. Google News RSS 富途美股
     url = ("https://news.google.com/rss/search"
            "?q=site%3Afutunn.com+%E7%BE%8E%E8%82%A1"
            "&hl=zh-CN&gl=CN&ceid=CN%3Azh-Hans")
-    news = _fetch_rss(url, count, "富途牛牛", filter_cn=True)
+    news = _filter_recent_news(_fetch_rss(url, count * 3, "富途牛牛", filter_cn=True))
 
-    # 2. 回退：Bing 中文美股新闻
     if len(news) < 3:
         url2 = "https://www.bing.com/news/search?q=%E7%BE%8E%E8%82%A1+%E8%A1%8C%E6%83%85&format=rss&setlang=zh-CN"
-        news = _fetch_rss(url2, count, "Bing新闻", filter_cn=True)
+        news = _dedupe_news(news + _filter_recent_news(_fetch_rss(url2, count * 3, "Bing新闻", filter_cn=True)))
 
-    # 3. 回退：磁盘缓存
     if len(news) < 3:
-        disk = _load_disk(_NEWS_DISK_CACHE)
-        if disk:
-            news = disk
+        disk = _filter_recent_news(_load_disk(_NEWS_DISK_CACHE) or [])
+        news = _dedupe_news(news + disk)
 
+    news = news[:count]
     if news:
         _save_disk(_NEWS_DISK_CACHE, news)
         cache_set("news", news, ttl=300)
@@ -382,7 +431,7 @@ def get_news(count: int = 10) -> list:
 
 
 def get_card_news() -> dict:
-    """卡片新闻：Google News RSS（富途）→ Bing → 磁盘缓存"""
+    """卡片新闻：3天内中文优先，不足再用3天内英文补位，不强行凑满。"""
     cached = cache_get("card_news")
     if cached:
         return cached
@@ -391,11 +440,12 @@ def get_card_news() -> dict:
     for key in _CARD_NEWS_GOOGLE:
         result[key] = _fetch_card_news_one(key, count=3)
 
-    # 磁盘回退：对空列表的 key 用上次缓存补齐
     disk = _load_disk(_CARD_NEWS_DISK) or {}
     for key in result:
-        if not result[key] and disk.get(key):
-            result[key] = disk[key]
+        if len(result[key]) >= 3:
+            continue
+        recent_disk = _filter_recent_news(disk.get(key, [])) if isinstance(disk.get(key, []), list) else []
+        result[key] = _dedupe_news(result[key] + recent_disk)[:3]
 
     _save_disk(_CARD_NEWS_DISK, result)
     cache_set("card_news", result, ttl=600)

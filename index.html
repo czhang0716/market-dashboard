@@ -380,7 +380,7 @@
     document.getElementById(`${key}-price`).textContent =
       formatPrice(d.price, dec);
     document.getElementById(`${key}-change`).textContent =
-      `${arrow} ${sign}${formatPrice(d.change, dec)}  (${sign}${d.change_pct.toFixed(2)}%)`;
+      `${arrow} ${sign}${d.change_pct.toFixed(2)}%`;
     document.getElementById(`${key}-change`).className = `card-change ${cls}`;
     document.getElementById(`card-${key}`).classList.remove('skeleton');
   }
@@ -520,10 +520,10 @@
   fetchNews();
   fetchMA();
   fetchCardNews();
-  setInterval(fetchAll,       60_000);
-  setInterval(fetchNews,     600_000);
-  setInterval(fetchMA,       600_000);
-  setInterval(fetchCardNews, 600_000);
+  setInterval(fetchAll,     3_600_000);
+  setInterval(fetchNews,    3_600_000);
+  setInterval(fetchMA,      3_600_000);
+  setInterval(fetchCardNews, 3_600_000);
 </script>
 
 </body>
