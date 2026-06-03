@@ -112,6 +112,14 @@
       background: #1c2a3a;
       border: 1px solid #58a6ff44;
     }
+    .ma-sep {
+      color: #484f58;
+      font-size: 0.82rem;
+      font-weight: 700;
+      align-self: center;
+      padding: 0 0.05rem;
+      flex-shrink: 0;
+    }
 
     /* ── 卡片内新闻 ── */
     .card-news {
@@ -130,6 +138,17 @@
       text-decoration: none;
       line-height: 1.5;
       display: block;
+      padding-left: 0.85rem;
+      position: relative;
+    }
+    .card-news-item a::before {
+      content: '·';
+      position: absolute;
+      left: 0;
+      top: 0;
+      color: currentColor;
+      font-size: 1rem;
+      line-height: 1.5;
     }
     .card-news-item a:hover { color: #58a6ff; }
 
@@ -401,13 +420,16 @@
     const { mas, highlighted } = d;
     const highlightSet = new Set(highlighted || []);
 
-    const tags = Object.keys(mas).map(name => {
+    const ordered = Object.keys(mas);
+    const tags = [];
+    ordered.forEach((name, idx) => {
+      if (idx === 4 || idx === 7) tags.push('<span class="ma-sep">-</span>');
       const isHighlighted = highlightSet.has(name);
       const num = name.replace('EMA', '');
-      return `<span class="ma-tag ${isHighlighted ? 'nearest' : ''}">${num}</span>`;
-    }).join('');
+      tags.push(`<span class="ma-tag ${isHighlighted ? 'nearest' : ''}">${num}</span>`);
+    });
 
-    el.innerHTML = `<div class="ma-row">${tags}</div>`;
+    el.innerHTML = `<div class="ma-row">${tags.join('')}</div>`;
     el.style.display = 'block';
   }
 
