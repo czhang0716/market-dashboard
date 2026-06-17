@@ -37,8 +37,43 @@
       border-radius: 12px;
       padding: 1.25rem 1.25rem;
       transition: border-color 0.2s;
+      position: relative;
     }
     .card:hover { border-color: #58a6ff; }
+
+    .card-controls {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      display: none;
+      gap: 0.3rem;
+    }
+    .card:hover .card-controls {
+      display: flex;
+    }
+    .card-controls button {
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #8b949e;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .card-controls button:hover {
+      background: #30363d;
+      color: #e6edf3;
+    }
+    .card-controls button.delete:hover {
+      background: rgba(248,81,73,0.2);
+      border-color: #f85149;
+      color: #f85149;
+    }
 
     .card-label { display: none; }
     .card-name  { font-size: 1rem; color: #c9d1d9; margin-bottom: 0.6rem; }
@@ -225,6 +260,76 @@
       color: #484f58; text-align: center; line-height: 1.6;
     }
 
+    /* ── 登录弹窗 ── */
+    #login-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    #login-modal.hidden {
+      display: none;
+    }
+    .login-box {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 2rem;
+      width: 90%;
+      max-width: 360px;
+    }
+    .login-box h2 {
+      font-size: 1.25rem;
+      color: #f0f6fc;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    .login-box input {
+      width: 100%;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 0.75rem;
+      color: #e6edf3;
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+    }
+    .login-box input:focus {
+      outline: none;
+      border-color: #58a6ff;
+    }
+    .login-box button {
+      width: 100%;
+      background: #238636;
+      border: none;
+      border-radius: 6px;
+      padding: 0.75rem;
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .login-box button:hover {
+      background: #2ea043;
+    }
+    .login-error {
+      color: #f85149;
+      font-size: 0.85rem;
+      margin-top: 0.75rem;
+      text-align: center;
+      display: none;
+    }
+    .login-error.show {
+      display: block;
+    }
+
     @media (max-width: 640px) {
       body {
         padding: 1rem 0.75rem;
@@ -252,6 +357,16 @@
 </head>
 <body>
 
+<!-- 登录弹窗 -->
+<div id="login-modal" class="hidden">
+  <div class="login-box">
+    <h2>🔒 管理员登录</h2>
+    <input type="password" id="password-input" placeholder="请输入密码" />
+    <button onclick="handleLogin()">登录</button>
+    <div class="login-error" id="login-error">密码错误，请重试</div>
+  </div>
+</div>
+
 <header>
   <h1>Jack Zhang 市场行情看板</h1>
   <div id="today-date"></div>
@@ -260,7 +375,12 @@
 <div id="error-banner"></div>
 
 <div class="cards">
-  <div class="card skeleton" id="card-sp500">
+  <div class="card skeleton" id="card-sp500" data-card-id="sp500">
+    <div class="card-controls">
+      <button class="up" onclick="moveCard('sp500', 'up')" title="上移">▲</button>
+      <button class="down" onclick="moveCard('sp500', 'down')" title="下移">▼</button>
+      <button class="delete" onclick="deleteCard('sp500')" title="删除">✕</button>
+    </div>
     <div class="card-label">美国股市</div>
     <div class="card-name">标普 500 &nbsp;S&amp;P 500</div>
     <div class="card-price-row">
@@ -271,7 +391,12 @@
     <div class="card-news" id="card-news-sp500" style="display:none"></div>
   </div>
 
-  <div class="card skeleton" id="card-nasdaq">
+  <div class="card skeleton" id="card-nasdaq" data-card-id="nasdaq">
+    <div class="card-controls">
+      <button class="up" onclick="moveCard('nasdaq', 'up')" title="上移">▲</button>
+      <button class="down" onclick="moveCard('nasdaq', 'down')" title="下移">▼</button>
+      <button class="delete" onclick="deleteCard('nasdaq')" title="删除">✕</button>
+    </div>
     <div class="card-label">美国股市</div>
     <div class="card-name">纳斯达克 100 &nbsp;NASDAQ</div>
     <div class="card-price-row">
@@ -282,7 +407,12 @@
     <div class="card-news" id="card-news-nasdaq" style="display:none"></div>
   </div>
 
-  <div class="card skeleton" id="card-sox">
+  <div class="card skeleton" id="card-sox" data-card-id="sox">
+    <div class="card-controls">
+      <button class="up" onclick="moveCard('sox', 'up')" title="上移">▲</button>
+      <button class="down" onclick="moveCard('sox', 'down')" title="下移">▼</button>
+      <button class="delete" onclick="deleteCard('sox')" title="删除">✕</button>
+    </div>
     <div class="card-label">美国股市</div>
     <div class="card-name">费城半导体 &nbsp;SOX</div>
     <div class="card-price-row">
@@ -293,7 +423,12 @@
     <div class="card-news" id="card-news-sox" style="display:none"></div>
   </div>
 
-  <div class="card skeleton" id="card-nvda">
+  <div class="card skeleton" id="card-nvda" data-card-id="nvda">
+    <div class="card-controls">
+      <button class="up" onclick="moveCard('nvda', 'up')" title="上移">▲</button>
+      <button class="down" onclick="moveCard('nvda', 'down')" title="下移">▼</button>
+      <button class="delete" onclick="deleteCard('nvda')" title="删除">✕</button>
+    </div>
     <div class="card-name">英伟达 &nbsp;NVDA</div>
     <div class="card-price-row">
       <div class="card-price" id="nvda-price">加载中...</div>
@@ -303,7 +438,12 @@
     <div class="card-news" id="card-news-nvda" style="display:none"></div>
   </div>
 
-  <div class="card skeleton" id="card-mu">
+  <div class="card skeleton" id="card-mu" data-card-id="mu">
+    <div class="card-controls">
+      <button class="up" onclick="moveCard('mu', 'up')" title="上移">▲</button>
+      <button class="down" onclick="moveCard('mu', 'down')" title="下移">▼</button>
+      <button class="delete" onclick="deleteCard('mu')" title="删除">✕</button>
+    </div>
     <div class="card-name">美光科技 &nbsp;MU</div>
     <div class="card-price-row">
       <div class="card-price" id="mu-price">加载中...</div>
@@ -313,7 +453,12 @@
     <div class="card-news" id="card-news-mu" style="display:none"></div>
   </div>
 
-  <div class="card skeleton" id="card-nbis">
+  <div class="card skeleton" id="card-nbis" data-card-id="nbis">
+    <div class="card-controls">
+      <button class="up" onclick="moveCard('nbis', 'up')" title="上移">▲</button>
+      <button class="down" onclick="moveCard('nbis', 'down')" title="下移">▼</button>
+      <button class="delete" onclick="deleteCard('nbis')" title="删除">✕</button>
+    </div>
     <div class="card-name">Nebius Group &nbsp;NBIS</div>
     <div class="card-price-row">
       <div class="card-price" id="nbis-price">加载中...</div>
@@ -323,7 +468,12 @@
     <div class="card-news" id="card-news-nbis" style="display:none"></div>
   </div>
 
-  <div class="card skeleton" id="card-googl">
+  <div class="card skeleton" id="card-googl" data-card-id="googl">
+    <div class="card-controls">
+      <button class="up" onclick="moveCard('googl', 'up')" title="上移">▲</button>
+      <button class="down" onclick="moveCard('googl', 'down')" title="下移">▼</button>
+      <button class="delete" onclick="deleteCard('googl')" title="删除">✕</button>
+    </div>
     <div class="card-name">Alphabet &nbsp;GOOGL</div>
     <div class="card-price-row">
       <div class="card-price" id="googl-price">加载中...</div>
@@ -333,7 +483,12 @@
     <div class="card-news" id="card-news-googl" style="display:none"></div>
   </div>
 
-  <div class="card skeleton" id="card-crcl">
+  <div class="card skeleton" id="card-crcl" data-card-id="crcl">
+    <div class="card-controls">
+      <button class="up" onclick="moveCard('crcl', 'up')" title="上移">▲</button>
+      <button class="down" onclick="moveCard('crcl', 'down')" title="下移">▼</button>
+      <button class="delete" onclick="deleteCard('crcl')" title="删除">✕</button>
+    </div>
     <div class="card-name">Circle Internet &nbsp;CRCL</div>
     <div class="card-price-row">
       <div class="card-price" id="crcl-price">加载中...</div>
@@ -343,7 +498,12 @@
     <div class="card-news" id="card-news-crcl" style="display:none"></div>
   </div>
 
-  <div class="card skeleton" id="card-uuuu">
+  <div class="card skeleton" id="card-uuuu" data-card-id="uuuu">
+    <div class="card-controls">
+      <button class="up" onclick="moveCard('uuuu', 'up')" title="上移">▲</button>
+      <button class="down" onclick="moveCard('uuuu', 'down')" title="下移">▼</button>
+      <button class="delete" onclick="deleteCard('uuuu')" title="删除">✕</button>
+    </div>
     <div class="card-name">Energy Fuels &nbsp;UUUU</div>
     <div class="card-price-row">
       <div class="card-price" id="uuuu-price">加载中...</div>
@@ -353,7 +513,12 @@
     <div class="card-news" id="card-news-uuuu" style="display:none"></div>
   </div>
 
-  <div class="card skeleton" id="card-uamy">
+  <div class="card skeleton" id="card-uamy" data-card-id="uamy">
+    <div class="card-controls">
+      <button class="up" onclick="moveCard('uamy', 'up')" title="上移">▲</button>
+      <button class="down" onclick="moveCard('uamy', 'down')" title="下移">▼</button>
+      <button class="delete" onclick="deleteCard('uamy')" title="删除">✕</button>
+    </div>
     <div class="card-label">美国股票</div>
     <div class="card-name">US Antimony &nbsp;UAMY</div>
     <div class="card-price-row">
@@ -364,7 +529,12 @@
     <div class="card-news" id="card-news-uamy" style="display:none"></div>
   </div>
 
-  <div class="card skeleton" id="card-btcusd">
+  <div class="card skeleton" id="card-btcusd" data-card-id="btcusd">
+    <div class="card-controls">
+      <button class="up" onclick="moveCard('btcusd', 'up')" title="上移">▲</button>
+      <button class="down" onclick="moveCard('btcusd', 'down')" title="下移">▼</button>
+      <button class="delete" onclick="deleteCard('btcusd')" title="删除">✕</button>
+    </div>
     <div class="card-label">加密货币</div>
     <div class="card-name">Bitcoin &nbsp;BTC/USD</div>
     <div class="card-price-row">
@@ -375,7 +545,12 @@
     <div class="card-news" id="card-news-btcusd" style="display:none"></div>
   </div>
 
-  <div class="card skeleton" id="card-gold">
+  <div class="card skeleton" id="card-gold" data-card-id="gold">
+    <div class="card-controls">
+      <button class="up" onclick="moveCard('gold', 'up')" title="上移">▲</button>
+      <button class="down" onclick="moveCard('gold', 'down')" title="下移">▼</button>
+      <button class="delete" onclick="deleteCard('gold')" title="删除">✕</button>
+    </div>
     <div class="card-name">黄金现货 &nbsp;GOLD</div>
     <div class="card-price-row">
       <div class="card-price" id="gold-price">加载中...</div>
@@ -403,6 +578,144 @@
 </footer>
 
 <script>
+  // ── 全局状态 ──
+  let userPassword = localStorage.getItem('dashboard_password') || '';
+  let cardsConfig = null;
+
+  // ── 登录处理 ──
+  async function handleLogin() {
+    const input = document.getElementById('password-input');
+    const password = input.value.trim();
+    const errorEl = document.getElementById('login-error');
+
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      const json = await res.json();
+
+      if (json.ok) {
+        userPassword = password;
+        localStorage.setItem('dashboard_password', password);
+        document.getElementById('login-modal').classList.add('hidden');
+        errorEl.classList.remove('show');
+        loadCardsConfig();
+      } else {
+        errorEl.classList.add('show');
+        input.value = '';
+      }
+    } catch (e) {
+      alert('登录失败：' + e.message);
+    }
+  }
+
+  // ── 加载卡片配置 ──
+  async function loadCardsConfig() {
+    try {
+      const res = await fetch('/api/cards-config');
+      const json = await res.json();
+      if (json.ok) {
+        cardsConfig = json.data;
+        reorderCards();
+      }
+    } catch (e) {
+      console.warn('加载配置失败:', e);
+    }
+  }
+
+  // ── 重新排列卡片 ──
+  function reorderCards() {
+    if (!cardsConfig) return;
+    const container = document.querySelector('.cards');
+    const order = cardsConfig.order || [];
+
+    order.forEach(cardId => {
+      const card = document.getElementById(`card-${cardId}`);
+      if (card) {
+        container.appendChild(card);
+      }
+    });
+  }
+
+  // ── 移动卡片 ──
+  async function moveCard(cardId, direction) {
+    if (!userPassword) {
+      alert('请先登录');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/card-move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: userPassword, cardId, direction })
+      });
+      const json = await res.json();
+
+      if (json.ok) {
+        cardsConfig = json.data;
+        reorderCards();
+      } else if (res.status === 401) {
+        localStorage.removeItem('dashboard_password');
+        location.reload();
+      } else {
+        alert('操作失败：' + json.error);
+      }
+    } catch (e) {
+      alert('操作失败：' + e.message);
+    }
+  }
+
+  // ── 删除卡片 ──
+  async function deleteCard(cardId) {
+    if (!userPassword) {
+      alert('请先登录');
+      return;
+    }
+
+    if (!confirm('确定要删除这张卡片吗？')) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/card-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: userPassword, cardId })
+      });
+      const json = await res.json();
+
+      if (json.ok) {
+        cardsConfig = json.data;
+        const card = document.getElementById(`card-${cardId}`);
+        if (card) card.remove();
+      } else if (res.status === 401) {
+        localStorage.removeItem('dashboard_password');
+        location.reload();
+      } else {
+        alert('删除失败：' + json.error);
+      }
+    } catch (e) {
+      alert('删除失败：' + e.message);
+    }
+  }
+
+  // ── 页面加载时检查登录状态 ──
+  window.addEventListener('DOMContentLoaded', () => {
+    if (!userPassword) {
+      document.getElementById('login-modal').classList.remove('hidden');
+    } else {
+      loadCardsConfig();
+    }
+
+    // 回车登录
+    document.getElementById('password-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+  });
+
   function showDate() {
     const opts = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
     document.getElementById('today-date').textContent =

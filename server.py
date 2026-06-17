@@ -452,6 +452,33 @@ def get_card_news() -> dict:
     return result
 
 
+# ── 卡片配置管理 ──────────────────────────────────────────────────────────
+
+_CARDS_CONFIG_FILE = _Path("cards_config.json")
+_DEFAULT_CARDS_ORDER = [
+    "sp500", "nasdaq", "sox", "nvda", "mu", "nbis",
+    "googl", "crcl", "uuuu", "uamy", "btcusd", "gold"
+]
+
+# 密码（生产环境应该用环境变量）
+_ADMIN_PASSWORD = "czhang95"
+
+def load_cards_config():
+    """加载卡片配置"""
+    config = _load_disk(_CARDS_CONFIG_FILE)
+    if not config:
+        config = {"order": _DEFAULT_CARDS_ORDER, "deleted": []}
+    return config
+
+def save_cards_config(config):
+    """保存卡片配置"""
+    _save_disk(_CARDS_CONFIG_FILE, config)
+
+def verify_password(password):
+    """验证密码"""
+    return password == _ADMIN_PASSWORD
+
+
 # ── HTTP 服务器 ───────────────────────────────────────────────────────────
 
 class Handler(BaseHTTPRequestHandler):
@@ -465,6 +492,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type",   "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
         self.wfile.write(body)
 
@@ -509,12 +538,93 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 self.send_json({"ok": False, "error": str(e)}, status=502)
 
+        elif self.path == "/api/cards-config":
+            try:
+                config = load_cards_config()
+                self.send_json({"ok": True, "data": config})
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, status=502)
+
         elif self.path in ("/", "/index.html"):
             self.send_file("index.html", "text/html; charset=utf-8")
 
         else:
             self.send_response(404)
             self.end_headers()
+
+    def do_POST(self):
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length).decode('utf-8')
+
+        try:
+            data = json.loads(body) if body else {}
+        except json.JSONDecodeError:
+            self.send_json({"ok": False, "error": "Invalid JSON"}, status=400)
+            return
+
+        if self.path == "/api/login":
+            password = data.get("password", "")
+            if verify_password(password):
+                self.send_json({"ok": True, "token": "admin-token"})
+            else:
+                self.send_json({"ok": False, "error": "Invalid password"}, status=401)
+
+        elif self.path == "/api/card-move":
+            password = data.get("password", "")
+            if not verify_password(password):
+                self.send_json({"ok": False, "error": "Unauthorized"}, status=401)
+                return
+
+            try:
+                config = load_cards_config()
+                card_id = data.get("cardId")
+                direction = data.get("direction")  # "up" or "down"
+
+                if card_id not in config["order"]:
+                    self.send_json({"ok": False, "error": "Card not found"}, status=404)
+                    return
+
+                idx = config["order"].index(card_id)
+                if direction == "up" and idx > 0:
+                    config["order"][idx], config["order"][idx-1] = config["order"][idx-1], config["order"][idx]
+                elif direction == "down" and idx < len(config["order"]) - 1:
+                    config["order"][idx], config["order"][idx+1] = config["order"][idx+1], config["order"][idx]
+
+                save_cards_config(config)
+                self.send_json({"ok": True, "data": config})
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, status=500)
+
+        elif self.path == "/api/card-delete":
+            password = data.get("password", "")
+            if not verify_password(password):
+                self.send_json({"ok": False, "error": "Unauthorized"}, status=401)
+                return
+
+            try:
+                config = load_cards_config()
+                card_id = data.get("cardId")
+
+                if card_id in config["order"]:
+                    config["order"].remove(card_id)
+                    if card_id not in config["deleted"]:
+                        config["deleted"].append(card_id)
+
+                save_cards_config(config)
+                self.send_json({"ok": True, "data": config})
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, status=500)
+
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
 
 
 # ── 入口 ─────────────────────────────────────────────────────────────────
