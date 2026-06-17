@@ -929,7 +929,11 @@
       if (!json.ok) throw new Error(json.error);
       const cardIds = getAllCardIds();
       cardIds.forEach(k => {
-        if (json.data[k]) renderMA(k, json.data[k]);
+        if (json.data[k]) {
+          renderMA(k, json.data[k]);
+        } else {
+          console.warn(`No MA data for ${k}`);
+        }
       });
     } catch (e) {
       console.warn('均线获取失败:', e.message);
@@ -1041,7 +1045,11 @@
       if (!json.ok) throw new Error(json.error);
       const cardIds = getAllCardIds();
       cardIds.forEach(k => {
-        if (json.data[k]) renderCardNews(k, json.data[k]);
+        if (json.data[k]) {
+          renderCardNews(k, json.data[k]);
+        } else {
+          console.warn(`No news data for ${k}`);
+        }
       });
     } catch (e) {
       console.warn('卡片新闻获取失败:', e.message);
