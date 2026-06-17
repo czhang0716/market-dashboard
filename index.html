@@ -677,6 +677,11 @@
       if (json.ok) {
         cardsConfig = json.data;
         reorderCards();
+        // 加载完配置后获取数据
+        fetchAll();
+        fetchNews();
+        fetchMA();
+        fetchCardNews();
       }
     } catch (e) {
       console.warn('加载配置失败:', e);
@@ -870,18 +875,22 @@
   }
 
   function renderCard(key, d) {
+    const priceEl = document.getElementById(`${key}-price`);
+    const changeEl = document.getElementById(`${key}-change`);
+    const cardEl = document.getElementById(`card-${key}`);
+
+    if (!priceEl || !changeEl || !cardEl) return;
+
     const isUp  = d.change >= 0;
     const arrow = isUp ? '▲' : '▼';
     const cls   = Math.abs(d.change) < 0.001 ? 'flat' : (isUp ? 'up' : 'down');
     const sign  = isUp ? '+' : '';
     const dec   = ['sp500', 'nasdaq', 'sox', 'btcusd', 'gold'].includes(key) ? 0 : 2;
 
-    document.getElementById(`${key}-price`).textContent =
-      formatPrice(d.price, dec);
-    document.getElementById(`${key}-change`).textContent =
-      `${arrow} ${sign}${d.change_pct.toFixed(2)}%`;
-    document.getElementById(`${key}-change`).className = `card-change ${cls}`;
-    document.getElementById(`card-${key}`).classList.remove('skeleton');
+    priceEl.textContent = formatPrice(d.price, dec);
+    changeEl.textContent = `${arrow} ${sign}${d.change_pct.toFixed(2)}%`;
+    changeEl.className = `card-change ${cls}`;
+    cardEl.classList.remove('skeleton');
   }
 
   function showError(msg) {
@@ -1040,10 +1049,7 @@
   }
 
   showDate();
-  fetchAll();
-  fetchNews();
-  fetchMA();
-  fetchCardNews();
+  // 数据获取由 loadCardsConfig() 触发，不在这里直接调用
   setInterval(fetchAll,     3_600_000);
   setInterval(fetchNews,    3_600_000);
   setInterval(fetchMA,      3_600_000);
