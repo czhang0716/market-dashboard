@@ -455,13 +455,22 @@ def get_card_news() -> dict:
     for key in _CARD_NEWS_GOOGLE:
         result[key] = _fetch_card_news_one(key, count=3)
 
-    # 自定义股票新闻（用 Yahoo RSS）
+    # 自定义股票新闻（先用 Yahoo RSS，如果没有再用 Google News）
     config = load_cards_config()
     if "custom" in config:
         for card_id, info in config["custom"].items():
             symbol = info["symbol"]
+            # 先试 Yahoo RSS
             news = _filter_recent_news(_fetch_yahoo_news(symbol, count=3))
-            result[card_id] = news
+
+            # 如果 Yahoo 没有新闻，试 Google News
+            if len(news) < 1:
+                query = f"{symbol}+stock"
+                url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+                google_news = _filter_recent_news(_fetch_rss(url, count=3, source="Google News", filter_cn=False))
+                news.extend(google_news)
+
+            result[card_id] = _dedupe_news(news)[:3]
 
     disk = _load_disk(_CARD_NEWS_DISK) or {}
     for key in result:
