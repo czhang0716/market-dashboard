@@ -330,6 +330,52 @@
       display: block;
     }
 
+    /* ── 添加卡片表单 ── */
+    .add-card-form {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .add-card-form input {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 0.75rem;
+      color: #e6edf3;
+      font-size: 0.95rem;
+    }
+    .add-card-form input:focus {
+      outline: none;
+      border-color: #58a6ff;
+    }
+    .add-card-form button {
+      background: #238636;
+      border: none;
+      border-radius: 6px;
+      padding: 0.75rem;
+      color: #fff;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .add-card-form button:hover {
+      background: #2ea043;
+    }
+    .add-card-error {
+      color: #f85149;
+      font-size: 0.85rem;
+      text-align: center;
+      display: none;
+    }
+    .add-card-error.show {
+      display: block;
+    }
+
     @media (max-width: 640px) {
       body {
         padding: 1rem 0.75rem;
@@ -562,6 +608,18 @@
 </div>
 
 
+<!-- 添加卡片区域 -->
+<div class="news-section" style="margin-top: 3rem;">
+  <h2>➕ 添加新卡片</h2>
+  <div class="add-card-form">
+    <input type="text" id="add-symbol" placeholder="股票代码（如 TSLA）" />
+    <input type="text" id="add-name" placeholder="公司名称（如 Tesla）" />
+    <button onclick="addNewCard()">添加</button>
+    <div class="add-card-error" id="add-card-error"></div>
+  </div>
+</div>
+
+
 <!-- 新闻区块 -->
 <div class="news-section">
   <h2>📰 美股大盘新闻</h2>
@@ -632,11 +690,47 @@
     const order = cardsConfig.order || [];
 
     order.forEach(cardId => {
-      const card = document.getElementById(`card-${cardId}`);
-      if (card) {
+      let card = document.getElementById(`card-${cardId}`);
+
+      // 如果卡片不存在且是自定义卡片，动态创建
+      if (!card && cardsConfig.custom && cardsConfig.custom[cardId]) {
+        card = createCustomCard(cardId, cardsConfig.custom[cardId]);
+        container.appendChild(card);
+      } else if (card) {
         container.appendChild(card);
       }
     });
+  }
+
+  // ── 创建自定义卡片 ──
+  function createCustomCard(cardId, info) {
+    const card = document.createElement('div');
+    card.className = 'card skeleton';
+    card.id = `card-${cardId}`;
+    card.setAttribute('data-card-id', cardId);
+
+    card.innerHTML = `
+      <div class="card-controls">
+        <button class="up" onclick="moveCard('${cardId}', 'up')" title="上移">▲</button>
+        <button class="down" onclick="moveCard('${cardId}', 'down')" title="下移">▼</button>
+        <button class="delete" onclick="deleteCard('${cardId}')" title="删除">✕</button>
+      </div>
+      <div class="card-name">${info.name} &nbsp;${info.symbol}</div>
+      <div class="card-price-row">
+        <div class="card-price" id="${cardId}-price">加载中...</div>
+        <div class="card-change flat" id="${cardId}-change">── ──</div>
+      </div>
+      <div class="ma-section" id="${cardId}-ma" style="display:none"></div>
+      <div class="card-news" id="card-news-${cardId}" style="display:none"></div>
+    `;
+
+    return card;
+  }
+
+  // ── 获取所有卡片ID ──
+  function getAllCardIds() {
+    if (!cardsConfig) return [];
+    return cardsConfig.order || [];
   }
 
   // ── 移动卡片 ──
@@ -699,6 +793,55 @@
       }
     } catch (e) {
       alert('删除失败：' + e.message);
+    }
+  }
+
+  // ── 添加新卡片 ──
+  async function addNewCard() {
+    if (!userPassword) {
+      alert('请先登录');
+      return;
+    }
+
+    const symbolInput = document.getElementById('add-symbol');
+    const nameInput = document.getElementById('add-name');
+    const errorEl = document.getElementById('add-card-error');
+
+    const symbol = symbolInput.value.trim().toUpperCase();
+    const name = nameInput.value.trim();
+
+    if (!symbol || !name) {
+      errorEl.textContent = '请输入股票代码和名称';
+      errorEl.classList.add('show');
+      return;
+    }
+
+    errorEl.classList.remove('show');
+
+    try {
+      const res = await fetch('/api/card-add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: userPassword, symbol, name })
+      });
+      const json = await res.json();
+
+      if (json.ok) {
+        cardsConfig = json.data;
+        symbolInput.value = '';
+        nameInput.value = '';
+        alert('添加成功！刷新页面查看新卡片。');
+        location.reload();
+      } else if (res.status === 401) {
+        localStorage.removeItem('dashboard_password');
+        location.reload();
+      } else {
+        errorEl.textContent = '添加失败：' + json.error;
+        errorEl.classList.add('show');
+      }
+    } catch (e) {
+      errorEl.textContent = '添加失败：' + e.message;
+      errorEl.classList.add('show');
     }
   }
 
@@ -775,7 +918,8 @@
       const res  = await fetch('/api/ma', { cache: 'no-store' });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
-      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd', 'gold', 'googl', 'mu', 'nvda'].forEach(k => {
+      const cardIds = getAllCardIds();
+      cardIds.forEach(k => {
         if (json.data[k]) renderMA(k, json.data[k]);
       });
     } catch (e) {
@@ -818,31 +962,51 @@
   async function fetchAll() {
     hideError();
 
-    ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd', 'gold', 'googl', 'mu', 'nvda'].forEach(k => {
-      document.getElementById(`card-${k}`).classList.add('skeleton');
-      document.getElementById(`${k}-price`).textContent  = '加载中...';
-      document.getElementById(`${k}-change`).textContent = '── ──';
-      document.getElementById(`${k}-change`).className   = 'card-change flat';
+    const cardIds = getAllCardIds();
+    cardIds.forEach(k => {
+      const card = document.getElementById(`card-${k}`);
+      if (card) {
+        card.classList.add('skeleton');
+        const priceEl = document.getElementById(`${k}-price`);
+        const changeEl = document.getElementById(`${k}-change`);
+        if (priceEl) priceEl.textContent = '加载中...';
+        if (changeEl) {
+          changeEl.textContent = '── ──';
+          changeEl.className = 'card-change flat';
+        }
+      }
     });
 
     try {
       const res  = await fetch('/api/quotes', { cache: 'no-store' });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error || '服务器返回错误');
-      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd', 'gold', 'googl', 'mu', 'nvda'].forEach(k => {
+      cardIds.forEach(k => {
         if (json.data[k]) renderCard(k, json.data[k]);
         else {
-          document.getElementById(`card-${k}`).classList.remove('skeleton');
-          document.getElementById(`${k}-price`).textContent  = '--';
-          document.getElementById(`${k}-change`).textContent = '休市';
-          document.getElementById(`${k}-change`).className   = 'card-change flat';
+          const card = document.getElementById(`card-${k}`);
+          if (card) {
+            card.classList.remove('skeleton');
+            const priceEl = document.getElementById(`${k}-price`);
+            const changeEl = document.getElementById(`${k}-change`);
+            if (priceEl) priceEl.textContent = '--';
+            if (changeEl) {
+              changeEl.textContent = '休市';
+              changeEl.className = 'card-change flat';
+            }
+          }
         }
       });
     } catch (e) {
-      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd', 'gold', 'googl', 'mu', 'nvda'].forEach(k => {
-        document.getElementById(`card-${k}`).classList.remove('skeleton');
-        document.getElementById(`${k}-price`).textContent  = '--';
-        document.getElementById(`${k}-change`).textContent = '获取失败';
+      cardIds.forEach(k => {
+        const card = document.getElementById(`card-${k}`);
+        if (card) {
+          card.classList.remove('skeleton');
+          const priceEl = document.getElementById(`${k}-price`);
+          const changeEl = document.getElementById(`${k}-change`);
+          if (priceEl) priceEl.textContent = '--';
+          if (changeEl) changeEl.textContent = '获取失败';
+        }
       });
     }
   }
@@ -866,7 +1030,8 @@
       const res  = await fetch('/api/card-news', { cache: 'no-store' });
       const json = await res.json();
       if (!json.ok) throw new Error(json.error);
-      ['sp500', 'nasdaq', 'sox', 'crcl', 'nbis', 'uuuu', 'uamy', 'btcusd', 'gold', 'googl', 'mu', 'nvda'].forEach(k => {
+      const cardIds = getAllCardIds();
+      cardIds.forEach(k => {
         if (json.data[k]) renderCardNews(k, json.data[k]);
       });
     } catch (e) {

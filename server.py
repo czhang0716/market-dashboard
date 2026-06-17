@@ -51,6 +51,13 @@ def get_quotes():
         "mu":     ("MU",      "美光科技 (MU)"),
         "nvda":   ("NVDA",    "英伟达 (NVDA)"),
     }
+
+    # 加载自定义卡片
+    config = load_cards_config()
+    if "custom" in config:
+        for card_id, info in config["custom"].items():
+            symbols_map[card_id] = (info["symbol"], info["name"])
+
     all_symbols = [v[0] for v in symbols_map.values()]
 
     df = yf.download(all_symbols, period="5d", interval="1d",
@@ -189,33 +196,39 @@ def get_ma_data():
         return cached
 
     quotes        = get_quotes()
-    sp500_closes  = fetch_closes("^GSPC")
-    nasdaq_closes = fetch_closes("^IXIC")
-    sox_closes    = fetch_closes("^SOX")
-    crcl_closes   = fetch_closes("CRCL")
-    nbis_closes   = fetch_closes("NBIS")
-    uuuu_closes   = fetch_closes("UUUU")
-    uamy_closes   = fetch_closes("UAMY")
-    btc_closes    = fetch_closes("BTC-USD")
-    gold_closes   = fetch_closes("GC=F")
-    googl_closes  = fetch_closes("GOOGL")
-    mu_closes     = fetch_closes("MU")
-    nvda_closes   = fetch_closes("NVDA")
 
-    result = {
-        "sp500":  calc_mas(sp500_closes,  quotes["sp500"]["price"]),
-        "nasdaq": calc_mas(nasdaq_closes, quotes["nasdaq"]["price"]),
-        "sox":    calc_mas(sox_closes,    quotes["sox"]["price"]),
-        "crcl":   calc_mas(crcl_closes,   quotes["crcl"]["price"]),
-        "nbis":   calc_mas(nbis_closes,   quotes["nbis"]["price"]),
-        "uuuu":   calc_mas(uuuu_closes,   quotes["uuuu"]["price"]),
-        "uamy":   calc_mas(uamy_closes,   quotes["uamy"]["price"]),
-        "btcusd": calc_mas(btc_closes,    quotes["btcusd"]["price"]),
-        "gold":   calc_mas(gold_closes,   quotes["gold"]["price"]),
-        "googl":  calc_mas(googl_closes,  quotes["googl"]["price"]),
-        "mu":     calc_mas(mu_closes,     quotes["mu"]["price"]),
-        "nvda":   calc_mas(nvda_closes,   quotes["nvda"]["price"]),
+    # 默认股票
+    default_symbols = {
+        "sp500": "^GSPC",
+        "nasdaq": "^IXIC",
+        "sox": "^SOX",
+        "crcl": "CRCL",
+        "nbis": "NBIS",
+        "uuuu": "UUUU",
+        "uamy": "UAMY",
+        "btcusd": "BTC-USD",
+        "gold": "GC=F",
+        "googl": "GOOGL",
+        "mu": "MU",
+        "nvda": "NVDA",
     }
+
+    result = {}
+
+    # 处理默认股票
+    for key, symbol in default_symbols.items():
+        if key in quotes:
+            closes = fetch_closes(symbol)
+            result[key] = calc_mas(closes, quotes[key]["price"])
+
+    # 处理自定义股票
+    config = load_cards_config()
+    if "custom" in config:
+        for card_id, info in config["custom"].items():
+            if card_id in quotes:
+                closes = fetch_closes(info["symbol"])
+                result[card_id] = calc_mas(closes, quotes[card_id]["price"])
+
     cache_set("ma_data", result, ttl=900)
     return result
 
@@ -437,8 +450,18 @@ def get_card_news() -> dict:
         return cached
 
     result = {}
+
+    # 默认股票新闻
     for key in _CARD_NEWS_GOOGLE:
         result[key] = _fetch_card_news_one(key, count=3)
+
+    # 自定义股票新闻（用 Yahoo RSS）
+    config = load_cards_config()
+    if "custom" in config:
+        for card_id, info in config["custom"].items():
+            symbol = info["symbol"]
+            news = _filter_recent_news(_fetch_yahoo_news(symbol, count=3))
+            result[card_id] = news
 
     disk = _load_disk(_CARD_NEWS_DISK) or {}
     for key in result:
@@ -609,6 +632,41 @@ class Handler(BaseHTTPRequestHandler):
                     config["order"].remove(card_id)
                     if card_id not in config["deleted"]:
                         config["deleted"].append(card_id)
+
+                save_cards_config(config)
+                self.send_json({"ok": True, "data": config})
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, status=500)
+
+        elif self.path == "/api/card-add":
+            password = data.get("password", "")
+            if not verify_password(password):
+                self.send_json({"ok": False, "error": "Unauthorized"}, status=401)
+                return
+
+            try:
+                config = load_cards_config()
+                symbol = data.get("symbol", "").strip().upper()
+                name = data.get("name", "").strip()
+
+                if not symbol or not name:
+                    self.send_json({"ok": False, "error": "Missing symbol or name"}, status=400)
+                    return
+
+                # 生成卡片 ID（小写，去掉特殊字符）
+                card_id = symbol.lower().replace("-", "").replace("^", "").replace("=", "")
+
+                if card_id in config["order"]:
+                    self.send_json({"ok": False, "error": "Card already exists"}, status=400)
+                    return
+
+                # 添加到配置
+                config["order"].append(card_id)
+
+                # 保存映射关系（用于后续获取数据）
+                if "custom" not in config:
+                    config["custom"] = {}
+                config["custom"][card_id] = {"symbol": symbol, "name": name}
 
                 save_cards_config(config)
                 self.send_json({"ok": True, "data": config})
